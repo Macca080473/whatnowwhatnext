@@ -601,12 +601,7 @@
   }
 
   /* Touch devices: show back face by default since hover doesn't work */
-  @media (hover: none) {
-    .pillar-front { opacity: 0; }
-    .pillar-back { opacity: 1; }
-    .pillar-card { height: auto; min-height: 400px; }
-    .pillar-img { filter: brightness(0.2); }
-  }
+
 
   /* TOOLS */
   .tools-grid {
@@ -1104,7 +1099,20 @@
     .circles-svg path,
     .circles-svg text { opacity: 1 !important; transition: none !important; }
   }
-</style>
+  /* Portrait phones — pillar cards single column for readability */
+  @media (max-width: 500px) {
+    .pillar-grid { grid-template-columns: 1fr; }
+    .pillar-card { min-height: 360px; }
+    .pillar-back { padding: 20px 18px; }
+    .pillar-back-title { font-size: 18px; }
+    .pillar-back li { font-size: 13px; }
+  }
+  /* Touch devices — always show back face (hover not available) */
+  @media (hover: none) {
+    .pillar-front { opacity: 0 !important; display: none; }
+    .pillar-back { opacity: 1 !important; }
+    .pillar-img { filter: brightness(0.2) !important; }
+  }</style>
 </head>
 <body>
 
@@ -1167,32 +1175,32 @@
       <div class="problem-number">03</div>
       <p class="problem-consequence">Causing disconnection &amp; inefficiency</p>
       <h3 class="problem-title">A scaling problem.</h3>
-      <p class="problem-desc">Individual growth rarely translates into collective and organisational performance. Without deliberate design, the effect of development activity stays isolated.</p>
+      <p class="problem-desc">Individual growth rarely translates into collective and organisational performance improvement. Without deliberate design, the effect of development activity stays isolated.</p>
     </div>
     <div class="problem-card">
       <div class="problem-number">04</div>
       <p class="problem-consequence">Causing uncertainty &amp; underinvestment</p>
       <h3 class="problem-title">An impact problem.</h3>
-      <p class="problem-desc">Organisations invest in development without ever truly knowing whether it worked, what it was worth, or how to meaningfully improve it. Measurement must address individual progress &amp; happiness, team performance and organisational return on investment.</p>
+      <p class="problem-desc">Organisations often invest in development without knowing whether it worked, what it was worth, or how to meaningfully improve it. Measurement must address individual progress &amp; happiness, team performance and organisational return on investment.</p>
     </div>
   </div>
 
   <div class="stat-row fade-in">
     <div class="stat-item">
       <div class="stat-number">18%</div>
-      <p class="stat-desc">less productive — the cost of disengaged employees vs their engaged counterparts<br><span class="stat-source">Gallup State of the Global Workplace</span></p>
+      <p class="stat-desc">less productive — the cost of disengaged employees vs their engaged counterparts.<br><span class="stat-source">Gallup State of the Global Workplace</span></p>
     </div>
     <div class="stat-item">
       <div class="stat-number">63%</div>
-      <p class="stat-desc">of employers identify skills gaps as a major barrier between now and 2030<br><span class="stat-source">World Economic Forum, Future of Jobs Report</span></p>
+      <p class="stat-desc">of employers identify skills gaps as a major barrier between now and 2030.<br><span class="stat-source">World Economic Forum, Future of Jobs Report</span></p>
     </div>
     <div class="stat-item">
       <div class="stat-number">39%</div>
-      <p class="stat-desc">higher productivity recorded in organisations that prioritise collaboration<br><span class="stat-source">i4CP Team Network Effect Report</span></p>
+      <p class="stat-desc">higher productivity recorded in organisations that prioritise collaboration.<br><span class="stat-source">i4CP Team Network Effect Report</span></p>
     </div>
     <div class="stat-item">
       <div class="stat-number">50%</div>
-      <p class="stat-desc">of organisations have no process for assessing the impact of their learning investment<br><span class="stat-source">CIPD Learning at Work Report</span></p>
+      <p class="stat-desc">of organisations have no process for assessing the impact of their learning investment.<br><span class="stat-source">CIPD Learning at Work Report</span></p>
     </div>
   </div>
 </section>
@@ -1293,21 +1301,21 @@
           <div class="level-dot"></div>
           <div>
             <div class="level-label">Individuals</div>
-            <div class="level-desc">Progress and happiness — finding purpose, building confidence, sustaining momentum</div>
+            <div class="level-desc">Progress and happiness — finding purpose, building confidence, sustaining momentum.</div>
           </div>
         </li>
         <li class="level-item">
           <div class="level-dot"></div>
           <div>
             <div class="level-label">Teams</div>
-            <div class="level-desc">Performance — creating alignment, building capability and collective energy, fostering collaboration</div>
+            <div class="level-desc">Performance — creating alignment, building capability and collective energy, fostering collaboration.</div>
           </div>
         </li>
         <li class="level-item">
           <div class="level-dot"></div>
           <div>
             <div class="level-label">Organisations</div>
-            <div class="level-desc">Growth — scaling development activity, measuring ROI, ensuring talent drives growth</div>
+            <div class="level-desc">Growth — scaling development activity, measuring ROI, ensuring talent drives growth.</div>
           </div>
         </li>
       </ul>
@@ -1427,7 +1435,7 @@
     <h2 class="cta-title">Ready to make progress that <em>sticks, scales and lasts?</em></h2>
   </div>
   <div>
-    <p class="cta-body">Start with a conversation. We'll discuss what you want to achieve, where development has fallen short before, and how our framework, tools and expertise can help. An open and honest conversation about what's possible.</p>
+    <p class="cta-body">Start with a conversation. We'll discuss what you want to achieve, where development might have fallen short before, and how our framework, tools and expertise can help. An open and honest conversation about what's possible. Alternatively, join one of our free taster sessions where a group of us explore a specific topic.</p>
     <p style="font-size:14px; color:rgba(255,255,255,0.55); margin-bottom:8px; letter-spacing:0.06em; text-transform:uppercase; font-weight:600;">Upcoming free taster sessions</p>
     <ul style="list-style:none; margin:0 0 32px 0; padding:0; display:flex; flex-direction:column; gap:8px;">
       <li style="font-size:14px; color:rgba(255,255,255,0.6); padding-left:16px; position:relative; line-height:1.5;"><span style="position:absolute;left:0;color:#b8c9b5;">—</span>How do I make AI work for me?</li>
