@@ -272,13 +272,37 @@
   }
 
   /* LEVEL NAV */
-  .level-nav {
+  .level-nav-wrapper {
+    position: relative;
     background: var(--stone);
+    border-bottom: 1px solid rgba(28,28,26,0.1);
+  }
+
+  .level-nav-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 48px;
+    background: linear-gradient(to right, transparent, var(--stone));
+    pointer-events: none;
+    display: none;
+  }
+
+  @media (max-width: 680px) {
+    .level-nav-wrapper::after { display: block; }
+  }
+
+  .level-nav {
+    background: transparent;
     padding: 0 80px;
     display: flex;
     gap: 0;
-    border-bottom: 1px solid rgba(28,28,26,0.1);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+
+  .level-nav::-webkit-scrollbar { display: none; }
 
   .level-nav-item {
     padding: 20px 32px;
@@ -713,6 +737,7 @@
     .page-hero { padding: 56px 24px 48px; }
     .intro-section { padding: 56px 24px; }
     .level-nav { padding: 0 24px; }
+    .level-nav-wrapper { padding: 0; }
     .level-nav { overflow-x: auto; }
     .level-section { padding: 56px 24px; }
     .level-header { grid-template-columns: 1fr; gap: 32px; }
@@ -837,13 +862,12 @@
 </div>
 
 <!-- LEVEL NAV -->
-<div class="level-nav">
+<div class="level-nav-wrapper"><div class="level-nav">
   <a class="level-nav-item" href="#individuals">Individuals</a>
   <a class="level-nav-item" href="#teams">Teams</a>
   <a class="level-nav-item" href="#organisations">Organisations</a>
-  <a class="level-nav-item" href="#programme">Full Programme</a>
   <a class="level-nav-item" href="#tasters">Free Tasters</a>
-</div>
+</div></div>
 
 <!-- INDIVIDUALS -->
 <section class="level-section" id="individuals" class="level-section fade-in">
@@ -863,7 +887,7 @@
         </div>
         <div class="goal-area">
           <p class="goal-area-label">Life stages</p>
-          <p class="goal-area-example">"How do I plan for a happy, meaningful retirement?"</p>
+          <p class="goal-area-example">"How can I plan for a happy, meaningful and fulfilling retirement?"</p>
         </div>
         <div class="goal-area">
           <p class="goal-area-label">Mindsets &amp; behaviours</p>
@@ -879,12 +903,12 @@
   <div class="services-grid">
     <div class="service-card">
       <h3 class="service-name">Coaching sessions &amp; progress check-ins</h3>
-      <p class="service-desc">Personal coaching focused on exploring meaning and setting goals. Development of an action plan and new habits to drive more meaningful action and sustain change over time. Includes regular progress check-ins to keep momentum.</p>
+      <p class="service-desc">Personal coaching focused on exploring meaning and setting goals. Development of an action plan and new habits to drive more meaningful action and sustain change over time. Includes regular progress check-ins to maintain momentum.</p>
       <span class="service-wsctag">Will · Skill</span>
     </div>
     <div class="service-card">
       <h3 class="service-name">Personal Learning &amp; Development programmes</h3>
-      <p class="service-desc">Development of a personalised learning and development programme, mapped to your specific goals and challenges across priority life domains. Draws on our 12 priority development competencies to identify and what matters most for you.</p>
+      <p class="service-desc">Development of a personalised learning and development programme, mapped to your specific goals and challenges across priority life domains. Draws on our 12 priority development competencies to identify what matters most for you.</p>
       <span class="service-wsctag">Will · Skill · Measurement</span>
     </div>
     <div class="service-card">
@@ -909,11 +933,11 @@
       <div class="goal-areas">
         <div class="goal-area">
           <p class="goal-area-label">Macro changes</p>
-          <p class="goal-area-example">"How do use AI as an opportunity to get the right people doing the right jobs?"</p>
+          <p class="goal-area-example">"How do we use AI as an opportunity to get the right people doing the right jobs?"</p>
         </div>
         <div class="goal-area">
           <p class="goal-area-label">Life stages</p>
-          <p class="goal-area-example">"How do we harness this moment of organisational transformation to improve our team's performance sustainably?"</p>
+          <p class="goal-area-example">"How do we harness this moment of organisational transformation to improve our team's performance?"</p>
         </div>
         <div class="goal-area">
           <p class="goal-area-label">Mind-sets &amp; behaviours</p>
@@ -921,7 +945,7 @@
         </div>
         <div class="goal-area">
           <p class="goal-area-label">Niche competencies</p>
-          <p class="goal-area-example">"How can we model leadership behaviours better to the rest of the organisation?"</p>
+          <p class="goal-area-example">"How can we improve how we model leadership behaviours to the rest of the organisation?"</p>
         </div>
       </div>
     </div>
@@ -929,7 +953,7 @@
   <div class="services-grid">
     <div class="service-card">
       <h3 class="service-name">Development data analysis</h3>
-      <p class="service-desc">Interviews, surveys and data analysis to understand current and desired state. Produces a prioritised gap analysis and action plan — the foundation for any team development programme.</p>
+      <p class="service-desc">Interviews, surveys and data analysis to understand current and desired end states. Produces a prioritised gap analysis and action plan — the foundation for any team development programme.</p>
       <span class="service-wsctag">Measurement</span>
     </div>
     <div class="service-card">
@@ -977,7 +1001,7 @@
           <p class="goal-area-example">"How do we integrate AI sustainably alongside human development &amp; flourishing?"</p>
         </div>
         <div class="goal-area">
-          <p class="goal-area-label">L&amp;D investment</p>
+          <p class="goal-area-label">Learning &amp; Development investment</p>
           <p class="goal-area-example">"How do we know if our L&D spend is delivering?"</p>
         </div>
         <div class="goal-area">
@@ -994,17 +1018,17 @@
   <div class="services-grid">
     <div class="service-card">
       <h3 class="service-name">Learning &amp; Development budget setting &amp; ROI prediction</h3>
-      <p class="service-desc">Uses the L&D Planner to benchmark current performance, identify priority development needs, set targets and build a rigorous investment case — with predicted ROI across conservative, realistic and optimistic scenarios. The starting point for any serious L&D investment decision.</p>
+      <p class="service-desc">Uses the our Learning &amp; Development Planner to benchmark current performance, identify priority development needs, set targets and build a rigorous investment case — with predicted ROI across conservative, realistic and optimistic scenarios. The starting point for any serious L&D investment decision.</p>
       <span class="service-wsctag">Measurement</span>
     </div>
     <div class="service-card">
       <h3 class="service-name">AI Integration + People Empowerment workshops</h3>
-      <p class="service-desc">Defines the operating model changes required to drive sustainable AI application, alongside the human development strategy needed to support it. Addresses both the technical and motivational dimensions of AI adoption — the combination most organisations miss.</p>
+      <p class="service-desc">Defines the operating model changes required to drive sustainable AI application, alongside the human development strategy needed to support it. Addresses both the technical and motivational dimensions of AI adoption — the combination many organisations miss.</p>
       <span class="service-wsctag">Will · Skill · Connectivity</span>
     </div>
     <div class="service-card">
       <h3 class="service-name">Learning &amp; Development transformation programme management</h3>
-      <p class="service-desc">Design and direction of full organisational L&D transformation initiatives, delivered as a fractional in-house role. Brings strategic clarity, programme rigour and WSC+M methodology to organisations that need to overhaul their approach to development.</p>
+      <p class="service-desc">Design and direction of comprehensive organisational Learning &amp; Development transformation initiatives, delivered as a fractional in-house role. Brings strategic clarity, programme rigour and our proprietary framework to organisations that need to overhaul their approach to development.</p>
       <span class="service-wsctag">Will · Skill · Connectivity · Measurement</span>
     </div>
     <div class="service-card">
@@ -1028,7 +1052,7 @@
     <p class="taster-tag">Try it first — group</p>
     <h3 class="taster-title">Monthly group taster sessions</h3>
     <p class="taster-detail">Free · 60 minutes · Online · Open to all</p>
-    <p class="taster-desc">Monthly group sessions, each focused on a specific development topic from our curriculum. Current topics include retirement planning, meaning and purpose, AI empowerment and goal-setting. Free to attend — get in touch to see the upcoming calendar and reserve a place.</p>
+    <p class="taster-desc">Monthly group sessions, each focused on a specific development topic from our curriculum. Current topics include retirement planning, meaning and purpose, AI empowerment and goal-setting. Free to attend — get in touch to learn about the upcoming calendar and reserve a place.</p>
     <a class="taster-cta" href="mailto:hello@whatnowwhatnext.co.uk?subject=Group session calendar">Email for upcoming sessions</a>
   </div>
 </section>
