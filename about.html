@@ -709,6 +709,20 @@
     .fade-in { opacity: 1; transform: none; transition: none; }
     .problem-card, .challenge-item, .cta-option-arrow { transition: none; }
   }
+  .photo-credits {
+    background: var(--bg);
+    padding: 12px 80px;
+    font-size: 11px;
+    color: rgba(28,28,26,0.32);
+    border-top: 1px solid rgba(28,28,26,0.06);
+  }
+
+  .photo-credits a {
+    color: rgba(28,28,26,0.32);
+    text-decoration: none;
+  }
+
+  .photo-credits a:hover { color: var(--mid); }
 </style>
 </head>
 <body>
@@ -899,7 +913,8 @@
   <ul class="footer-links">
     <li><a href="index.html#framework">Framework</a></li>
     <li><a href="services.html">Services</a></li>
-    <li><a href="about.html">About Iain</a></li>
+    <li><a href="index.html#tools">Tools</a></li>
+    <li><a href="about.html">About</a></li>
   </ul>
   <a class="footer-email" href="mailto:hello@whatnowwhatnext.co.uk">hello@whatnowwhatnext.co.uk</a>
 </footer>
@@ -914,5 +929,6 @@
       document.querySelectorAll('.fade-in').forEach(function(el) { observer.observe(el); });
     })();
   </script>
+<div class="photo-credits"><a href="privacy.html">Privacy Notice</a></div>
 </body>
 </html>
