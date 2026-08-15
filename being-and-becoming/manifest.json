@@ -1,6 +1,6 @@
 {
   "name": "Being and Becoming",
-  "short_name": "B&Becoming",
+  "short_name": "Being&Becoming",
   "description": "A private, offline self-reflection tool from What Now? What Next?",
   "start_url": "./index.html",
   "scope": "./",
