@@ -3175,6 +3175,7 @@ function renderExport() {
       <div style="font-weight:500;margin-bottom:.5rem">JSON backup</div>
       <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">This log lives in your browser's storage only. Back up regularly.</p>
       <button class="btn btn-secondary" onclick="exportJSON()" style="margin-right:8px">⬇ Download backup</button>
+      <button class="btn btn-secondary" onclick="openCopyBackupModal()" style="margin-right:8px">📋 Copy backup as text</button>
       <label class="btn btn-secondary" style="cursor:pointer;margin-right:8px">⬆ Restore backup<input type="file" accept=".json" style="display:none" onchange="importJSON(this)"></label>
       <button class="btn btn-secondary" onclick="openPasteRestoreModal()">📋 Paste backup text instead</button>
     </div>
@@ -3607,8 +3608,8 @@ function exportExcel() {
   XLSX.writeFile(wb, `BeingAndBecoming_${safeWorkspaceNameForFilename()}_${today()}.xlsx`);
 }
 
-function exportJSON() {
-  const data = {
+function buildBackupData() {
+  return {
     exported:today(), values:VALUES, traits:TRAITS, behavioural:BEHAVIOURAL, goals:GOALS, skills:SKILLS, relevanceCriteria:RELEVANCE_CRITERIA,
     traitNotes:load(SK.traitNotes),
     valueScores:load(SK.valueScores), goalCheckins:load(SK.goalCheckins),
@@ -3617,9 +3618,46 @@ function exportJSON() {
     actions:load(SK.actions), learnings:load(SK.learnings), themes:load(SK.themes), displayName:getDisplayName(),
     scratchpad:load(SK.scratchpad), scratchpadCategories:SCRATCHPAD_CATEGORIES,
   };
+}
+// Blob-based download — more reliable across browsers than the older data: URI + click()
+// trick, particularly for installed/standalone PWAs on iOS, where that older approach is
+// known to fail silently (no error, no download, nothing visibly happens).
+function triggerFileDownload(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data,null,2));
-  a.download = `BeingAndBecoming_Backup_${safeWorkspaceNameForFilename()}_${today()}.json`; a.click();
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportJSON() {
+  const data = buildBackupData();
+  triggerFileDownload(
+    `BeingAndBecoming_Backup_${safeWorkspaceNameForFilename()}_${today()}.json`,
+    JSON.stringify(data,null,2),
+    'application/json'
+  );
+}
+function openCopyBackupModal() {
+  const text = JSON.stringify(buildBackupData(), null, 2);
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const body = `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">If "Download backup" isn't working on your device, copy this text instead and save it somewhere (e.g. paste it into a notes app) — you can restore from it later using "Paste backup text instead."</p>
+    <textarea id="copyBackupText" readonly style="width:100%;height:220px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5">${escaped}</textarea>`;
+  openModal('Backup, as text', body,
+    `<button class="btn btn-secondary" onclick="closeModal()">Close</button>
+     <button class="btn btn-primary" onclick="copyBackupTextToClipboard(event)">📋 Copy to clipboard</button>`);
+}
+function copyBackupTextToClipboard(evt) {
+  const ta = document.getElementById('copyBackupText'); if (!ta) return;
+  ta.focus(); ta.select(); ta.setSelectionRange(0, 999999);
+  try { document.execCommand && document.execCommand('copy'); } catch(e) {}
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(ta.value).catch(()=>{}); }
+  const btn = evt && evt.target;
+  if (btn) { const old = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>{ btn.textContent = old; }, 1500); }
 }
 // Reusable in-page confirm/message modals — deliberately NOT using window.confirm()/alert().
 // Some embedded/in-app mobile browsers (e.g. those used by third-party file-manager apps)
@@ -3759,9 +3797,11 @@ function exportAllWorkspaces() {
     exported: today(),
     workspaces: list.map(w => ({ id:w.id, name:w.name, data: snapshotWorkspaceData(w.id) })),
   };
-  const a = document.createElement('a');
-  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(bundle,null,2));
-  a.download = `BeingAndBecoming_AllWorkspaces_${today()}.json`; a.click();
+  triggerFileDownload(
+    `BeingAndBecoming_AllWorkspaces_${today()}.json`,
+    JSON.stringify(bundle,null,2),
+    'application/json'
+  );
 }
 function applyAllWorkspacesRestore(bundle) {
   const existing = listWorkspaces();
