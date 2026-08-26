@@ -86,6 +86,49 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   .hdr .btn-sm{font-size:12px;padding:5px 8px}
   .hdr{gap:6px}
   .hdr img[alt=""]{height:30px}
+
+  /* ── Mobile text-size bump (Option 2, agreed Aug 2026) ──────
+     Applies to the "card description + meta line" pattern used across
+     Actions, Learnings, and Scratchpad — .action-desc (the description/
+     item text) and .action-meta (dates, tags, categories underneath it).
+     Both step up together so the size *gap* between them is preserved —
+     this is what keeps it obvious at a glance which line is the actual
+     content and which is supporting context. Bumping only one of the two
+     (or bumping every small element app-wide) was explicitly rejected —
+     see exceptions immediately below, kept deliberately untouched:
+
+       • #workspaceSwitcher (header dropdown) — kept small on purpose to
+         fit next to "Manage" in the header; bumping it risks reopening
+         the header-crowding problem that made it small in the first place.
+       • Paste-in textareas (Restore backup, Paste backup text, Organise
+         themes with Claude, all-workspaces restore) — kept small/monospace
+         on purpose so more pasted/copied text is visible on screen at once;
+         bumping these costs real scroll distance when reviewing a paste.
+       • Inline-edited quiet text (e.g. the theme description field in
+         Manage Themes) — kept small on purpose so it reads as unobtrusive
+         inline text rather than a form field.
+
+     If a future change wants to revisit any of the three exceptions above,
+     do it as its own deliberate decision — not as a side-effect of another
+     general text-size pass through the app. */
+  .action-desc{font-size:16px}
+  .action-meta{font-size:14px}
+
+  /* ── Mobile tap-target bump (Aug 2026) ──────────────────────
+     .btn-sm is used for Edit/Delete pairs, sort controls, theme
+     management etc. throughout the app — at its normal size
+     (~24-26px tall) it's well under Apple's 44x44pt guideline,
+     and Edit/Delete sitting right next to each other with only
+     6px between them makes mis-taps easy on a phone.
+     This doesn't take it all the way to 44px — that would cost
+     more scrolling on already-long lists (Learnings, Actions,
+     Scratchpad) than seems worth it for a compact, list-heavy
+     app. It's a meaningful improvement (~34px tall, and more
+     breathing room between adjacent buttons), not full
+     compliance with the guideline — a deliberate, documented
+     trade-off, not an oversight. */
+  .btn-sm{padding:9px 16px;font-size:13px}
+  .action-btns{gap:10px}
 }
 .hdr-title{color:#fff;font-size:17px;font-weight:500}
 .app-footer{text-align:center;padding:1.25rem 1.5rem 1.5rem;font-size:11px;color:var(--text3);border-top:0.5px solid var(--border);margin-top:1rem}
@@ -135,9 +178,11 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
 @media(max-width:500px){.grid-2{grid-template-columns:1fr}}
 @media(max-width:640px){.grid-3{grid-template-columns:1fr 1fr}}
 @media(max-width:640px){.two-col{grid-template-columns:1fr}}
+@media(max-width:640px){.three-col{grid-template-columns:1fr}}
 
 /* ── Self-rating slider (felt-language, no target) ──────── */
 .rate-row{margin:10px 0}
@@ -495,7 +540,8 @@ const SK = {
   willSessions:'bb_will_sessions', skillSessions:'bb_skill_sessions', connectivitySessions:'bb_connectivity_sessions',
   skills:'bb_skills', skillCheckins:'bb_skill_checkins',
   relevanceCriteria:'bb_relevance_criteria', relevanceScores:'bb_relevance_scores', tactics:'bb_tactics',
-  actions:'bb_actions', learnings:'bb_learnings', themes:'bb_learning_themes',
+  actions:'bb_actions', learnings:'bb_learnings', themes:'bb_learning_themes', brightSpots:'bb_bright_spots',
+  lastSharedDate:'bb_last_shared_date',
   displayName:'bb_display_name',
 };
 
@@ -801,6 +847,8 @@ function saveRelevanceCriteria() { save(SK.relevanceCriteria, RELEVANCE_CRITERIA
 
 function getDisplayName() { return wsGet(SK.displayName) || ''; }
 function setDisplayName(n) { wsSet(SK.displayName, n || ''); }
+function getLastSharedDate() { return wsGet(SK.lastSharedDate) || ''; }
+function setLastSharedDate(d) { wsSet(SK.lastSharedDate, d || ''); }
 
 // ═══════════════════════════════════════════════════════════════
 // CHECK-IN HELPERS — every check-in is {id, date, value(0-10), note, proudOf, nextStep}
@@ -1036,7 +1084,6 @@ function renderHome() {
       <div><div class="eyebrow">Orientation</div><div class="section-title">Home</div>
         <div class="section-sub">Jump straight to any part of your log</div></div>
     </div>
-    <button class="btn btn-secondary btn-sm" style="margin-bottom:1rem" onclick="showView('instructions')">Read the full instructions →</button>
     <div class="home-tile-grid">${visibleTiles.map(t => `
       <div class="home-tile" style="background-image:url('${t.img}');background-position:${t.pos||'center'}" onclick="showView('${t.id}')">
         <div class="home-tile-text">
@@ -1044,6 +1091,7 @@ function renderHome() {
           <div class="home-tile-desc">${escapeHtml(t.desc)}</div>
         </div>
       </div>`).join('')}</div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:1rem" onclick="showView('instructions')">Read the full instructions →</button>
   `;
 }
 
@@ -1171,6 +1219,11 @@ function renderSnapshot() {
   const learnings = load(SK.learnings).sort((a,b)=>b.date.localeCompare(a.date));
   const latestLearning = learnings[0];
 
+  // Most recent bright spot
+  const brightSpots = load(SK.brightSpots).sort((a,b)=>b.date.localeCompare(a.date));
+  const latestBrightSpot = brightSpots[0];
+  const latestBrightSpotValue = latestBrightSpot ? VALUES.find(v=>v.id===latestBrightSpot.valueId) : null;
+
   // Top-ranked tactic per goal (if any)
   const tacticHighlights = GOALS.map(g => {
     const criteria = RELEVANCE_CRITERIA.filter(r=>r.goalId===g.id);
@@ -1211,7 +1264,7 @@ function renderSnapshot() {
       ${GOALS.length ? goalRows : '<div class="empty-state" style="padding:1rem">No goals yet.</div>'}
     </div>
 
-    <div class="two-col">
+    <div class="three-col">
       <div class="card">
         <div style="font-weight:500;margin-bottom:.5rem">What currently resonates most</div>
         ${veryImportant.length ? `<div class="chip-row">${veryImportant.map(t=>`<span class="chip">${escapeHtml(t.label)}</span>`).join('')}</div>` : '<div class="empty-state" style="padding:1rem">Nothing flagged as "very important" yet.</div>'}
@@ -1219,6 +1272,10 @@ function renderSnapshot() {
       <div class="card">
         <div style="font-weight:500;margin-bottom:.5rem">Most recent learning</div>
         ${latestLearning ? `<div style="font-size:13px;color:var(--text2)">${escapeHtml(latestLearning.description)}</div><div class="updated-row">${fmtDate(latestLearning.date)}</div>` : '<div class="empty-state" style="padding:1rem">None recorded yet.</div>'}
+      </div>
+      <div class="card">
+        <div style="font-weight:500;margin-bottom:.5rem">🌟 A recent bright spot</div>
+        ${latestBrightSpot ? `<div style="font-size:13px;color:var(--text2)">${escapeHtml(latestBrightSpot.description)}</div><div class="updated-row">${fmtDate(latestBrightSpot.date)}${latestBrightSpotValue?` · ${escapeHtml(latestBrightSpotValue.label)}`:''}</div>` : '<div class="empty-state" style="padding:1rem">None recorded yet — notice one on the Values tab.</div>'}
       </div>
     </div>
 
@@ -1263,18 +1320,39 @@ function renderValues() {
       const latest = list.length ? list[list.length-1] : null;
       html += `<div class="card-sm" style="margin-bottom:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}</span>
+          <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}${brightSpotsFor(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🌟 ${brightSpotsFor(v.id).length}</span>`:''}</span>
           ${latest?`<span style="font-size:18px;font-weight:500;color:var(--accent)">${latest.value}</span>`:''}
         </div>
         ${list.length>1?`<div class="chart-wrap-sm"><canvas id="valChart-${v.id}"></canvas></div>`:''}
         <div class="updated-row">${latest?`Last check-in: ${fmtDate(latest.date)} (${timeSince(latest.date)} ago)`:'No check-ins yet'}</div>
-        <div style="display:flex;gap:6px;margin-top:8px">
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm" onclick="openValueCheckin('${v.id}')">Check in</button>
           ${list.length?`<button class="btn btn-secondary btn-sm" onclick="openCheckinHistory('${SK.valueScores}','valueId','${v.id}','${escapeHtml(v.label)}')">History</button>`:''}
+          <button class="btn btn-secondary btn-sm" onclick="openAddBrightSpot('${v.id}')">🌟 Add bright spot</button>
         </div>
       </div>`;
     });
   });
+
+  const allBrightSpots = load(SK.brightSpots).sort((a,b)=>b.date.localeCompare(a.date));
+  html += `<div class="section-label" style="margin-top:1.25rem">Bright spots</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Moments you've noticed yourself actually living your values — proof, not just intention.</p>`;
+  html += !allBrightSpots.length ? '<div class="empty-state">None recorded yet — tap "Add bright spot" on any value above when you notice one.</div>' :
+    allBrightSpots.map(b => {
+      const v = VALUES.find(x=>x.id===b.valueId);
+      return `<div class="card-sm" style="margin-bottom:.625rem">
+        <div style="font-size:13px;color:var(--text2)">${escapeHtml(b.description)}</div>
+        <div class="action-meta" style="margin-top:4px">
+          <span>${fmtDate(b.date)}</span>
+          ${v?`<span style="color:var(--accent)">${escapeHtml(v.label)}</span>`:''}
+          ${relatedGoalTagHtml(b.goalId)}
+        </div>
+        <div class="action-btns" style="margin-top:6px">
+          <button class="btn btn-secondary btn-sm" onclick="openEditBrightSpot('${b.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteBrightSpot('${b.id}')">✕</button>
+        </div>
+      </div>`;
+    }).join('');
 
   document.getElementById('values').innerHTML = html;
 
@@ -1886,6 +1964,7 @@ function renderGoals() {
           <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
             ${g.category?`<span class="tag">${escapeHtml(g.category)}</span>`:''}
             ${g.dueDate?`<span style="font-size:11px;color:var(--text3)">Around ${fmtDate(g.dueDate)}</span>`:''}
+            ${brightSpotCountForGoal(g.id)?`<span style="font-size:11px;color:var(--accent)">🌟 ${brightSpotCountForGoal(g.id)} bright spot${brightSpotCountForGoal(g.id)===1?'':'s'}</span>`:''}
           </div>
         </div>
         ${disp.value!=null?`<div style="text-align:right"><div style="font-size:18px;font-weight:500;color:var(--accent)">${disp.value}</div><div style="font-size:10px;color:var(--text3)">${disp.isDerived?'avg of sub-goals':(g.subGoals.length?'your own score':'')}</div></div>`:'<div style="font-size:12px;color:var(--text3)">No check-ins</div>'}
@@ -2034,6 +2113,12 @@ function openEditGoal(goalId) {
     </div>
     <div class="field-group"><label class="field-label">Target <span style="font-weight:400;color:var(--text3)">(optional — a score you're aiming for, just for your own reference)</span></label>
       <input type="number" id="mgGoalTarget" min="0" max="10" step="0.5" value="${g?.target ?? ''}" placeholder="e.g. 8">
+    </div>
+    <div class="field-group">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="mgGoalShareable" ${(!g || g.shareWithPartner!==false)?'checked':''}>
+        Include this goal when sharing a progress update
+      </label>
     </div>`;
   if (!isNew) {
     body += `<div class="divider"></div>
@@ -2071,13 +2156,14 @@ function saveGoalMeta(goalId) {
   const dueDate = document.getElementById('mgGoalDate').value;
   const targetRaw = document.getElementById('mgGoalTarget').value;
   const target = targetRaw!=='' && targetRaw!=null ? Math.max(0,Math.min(10,parseFloat(targetRaw))) : null;
+  const shareWithPartner = document.getElementById('mgGoalShareable').checked;
   if (!goalId) {
     const id = 'g_'+uid();
-    GOALS.push({ id, title, category, notes, dueDate, target, subGoals:[] });
+    GOALS.push({ id, title, category, notes, dueDate, target, shareWithPartner, subGoals:[] });
     saveGoals();
     openEditGoal(id);
   } else {
-    Object.assign(findGoal(goalId), { title, category, notes, dueDate, target });
+    Object.assign(findGoal(goalId), { title, category, notes, dueDate, target, shareWithPartner });
     saveGoals();
     openManageGoals();
   }
@@ -2634,8 +2720,8 @@ function scratchpadCardHtml(item) {
   if (item.timing) tags.push(item.timing);
   if (item.priority) tags.push(item.priority+' priority');
   return `<div class="card-sm" style="margin-bottom:.625rem">
-    <div style="font-size:13px;color:var(--text2)">${escapeHtml(item.text)}</div>
-    <div class="updated-row" style="margin-top:4px">${fmtDate(item.date)} (${timeSince(item.date)} ago)</div>
+    <div class="action-desc" style="color:var(--text2);margin-bottom:0">${escapeHtml(item.text)}</div>
+    <div class="action-meta" style="margin-top:4px">${fmtDate(item.date)} (${timeSince(item.date)} ago)</div>
     ${tags.length?`<div class="chip-row" style="margin-top:6px">${tags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>`:''}
     ${scratchpadOutcomeTagHtml(item)}
     <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="openTriageScratchpadItem('${item.id}')">${item.outcome?'Review / change':'Triage'}</button>
@@ -2977,7 +3063,7 @@ function renderLearnings() {
     sorted.map(l => `
       <div class="card-sm" style="margin-bottom:.625rem">
         <div style="display:flex;justify-content:space-between;gap:8px">
-          <span style="font-size:13px;font-weight:500">${escapeHtml(l.description)}</span>
+          <span class="action-desc" style="margin-bottom:0">${escapeHtml(l.description)}</span>
           <span class="tag">${escapeHtml(l.priority||'')}</span>
         </div>
         <div class="action-meta" style="margin-top:4px">
@@ -3154,6 +3240,77 @@ function deleteLearning(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// BRIGHT SPOTS — noticing real evidence of living a value (or working
+// towards a goal), so the good stuff reinforces identity, not just gets
+// logged and forgotten. Deliberately lighter than Learnings — no
+// category/priority/theme — bright spots are noticed and kept, not
+// triaged or organised.
+// ═══════════════════════════════════════════════════════════════
+function brightSpotsFor(valueId) {
+  return load(SK.brightSpots).filter(b=>b.valueId===valueId).sort((a,b)=>b.date.localeCompare(a.date));
+}
+function brightSpotCountForGoal(goalId) {
+  return load(SK.brightSpots).filter(b=>b.goalId===goalId).length;
+}
+function openAddBrightSpot(valueId) {
+  const body = `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">A moment you noticed yourself living this value — however small. No need to justify it or make it sound impressive, just capture what happened.</p>
+    <div class="field-group"><label class="field-label">Date</label><input type="date" id="bsDate" value="${today()}"></div>
+    <div class="field-group"><label class="field-label">What happened?</label><textarea id="bsDesc" placeholder="e.g. Put a friend in touch with contacts who could help sell their products"></textarea></div>
+    <div class="field-group"><label class="field-label">Value</label>
+      <select id="bsValue">${VALUES.map(v=>`<option value="${v.id}" ${valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>
+    </div>
+    <div class="field-group"><label class="field-label">Related goal <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <select id="bsGoal">${relatedGoalOptionsHtml('')}</select>
+    </div>`;
+  openModal('Add a Bright Spot', body,
+    `<button class="btn btn-secondary" onclick="closeModal(); renderValues()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveBrightSpot()">Save</button>`);
+}
+function saveBrightSpot() {
+  const description = document.getElementById('bsDesc').value.trim();
+  if (!description) { closeModal(); renderValues(); return; }
+  const spots = load(SK.brightSpots);
+  spots.push({
+    id:uid(), date:document.getElementById('bsDate').value||today(), description,
+    valueId:document.getElementById('bsValue').value||null,
+    goalId:document.getElementById('bsGoal').value||null,
+  });
+  save(SK.brightSpots, spots);
+  closeModal(); renderValues();
+}
+function openEditBrightSpot(id) {
+  const b = load(SK.brightSpots).find(x=>x.id===id); if (!b) return;
+  const body = `
+    <div class="field-group"><label class="field-label">Date</label><input type="date" id="bsEditDate" value="${b.date}"></div>
+    <div class="field-group"><label class="field-label">What happened?</label><textarea id="bsEditDesc">${escapeHtml(b.description)}</textarea></div>
+    <div class="field-group"><label class="field-label">Value</label>
+      <select id="bsEditValue">${VALUES.map(v=>`<option value="${v.id}" ${b.valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>
+    </div>
+    <div class="field-group"><label class="field-label">Related goal <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <select id="bsEditGoal">${relatedGoalOptionsHtml(b.goalId||'')}</select>
+    </div>`;
+  openModal('Edit Bright Spot', body,
+    `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveEditBrightSpot('${id}')">Save</button>`);
+}
+function saveEditBrightSpot(id) {
+  const spots = load(SK.brightSpots);
+  const b = spots.find(x=>x.id===id); if (!b) return;
+  b.date = document.getElementById('bsEditDate').value;
+  b.description = document.getElementById('bsEditDesc').value.trim();
+  b.valueId = document.getElementById('bsEditValue').value||null;
+  b.goalId = document.getElementById('bsEditGoal').value||null;
+  save(SK.brightSpots, spots);
+  closeModal(); renderValues();
+}
+function deleteBrightSpot(id) {
+  if (!confirm('Delete this bright spot? This cannot be undone.')) return;
+  save(SK.brightSpots, load(SK.brightSpots).filter(x=>x.id!==id));
+  renderValues();
+}
+
+// ═══════════════════════════════════════════════════════════════
 // EXPORT VIEW — scenario snapshot
 // ═══════════════════════════════════════════════════════════════
 function renderExport() {
@@ -3166,6 +3323,11 @@ function renderExport() {
       <div style="font-weight:500;margin-bottom:.5rem">Copy scenario context</div>
       <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">Generates a snapshot of everything in this log, ready to paste at the top of a new Claude conversation, followed by whatever you're facing.</p>
       <button class="btn btn-primary" onclick="openScenarioContextModal()">📋 Copy scenario context</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">🤝 Share progress with an accountability partner</div>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">A readable update covering your Goals, Actions, Learnings, and Bright Spots — ready to paste into a text, email, or WhatsApp message. Values scores, Qualities & Styles, and anything else more personal stay out of it. Goals can be individually excluded from Manage Goals.</p>
+      <button class="btn btn-primary" onclick="openShareProgressModal()">🤝 Share progress</button>
     </div>
     <div class="card">
       <div style="font-weight:500;margin-bottom:.5rem">Excel download</div>
@@ -3524,6 +3686,90 @@ function applyThemeReply() {
   alert('Themes updated.');
 }
 
+// ── Share progress with an accountability partner ──────────────────
+// Deliberately narrower than the Claude scenario export: Goals, Actions,
+// Learnings, and Bright Spots only — the "witness and encourager" role we
+// designed this for doesn't need visibility into Values scores, Qualities
+// & Styles, Will/Skill/Connectivity, or Scratchpad. A Bright Spot naming
+// a value (e.g. "Connective") is fine and part of the point; the actual
+// numeric self-rating for that value stays private either way.
+function buildShareProgressText(sinceLastShare) {
+  const since = sinceLastShare ? getLastSharedDate() : '';
+  const lines = [];
+  lines.push(`Progress update — ${fmtDate(today())}`);
+  if (sinceLastShare && since) lines.push(`(everything since ${fmtDate(since)})`);
+  lines.push('');
+
+  const goals = GOALS.filter(g => g.shareWithPartner !== false);
+  lines.push('GOALS');
+  if (!goals.length) lines.push('None shared.');
+  goals.forEach(g => {
+    const disp = goalCurrentDisplay(g);
+    const scoreText = disp.value!=null ? `${disp.value}/10` : 'no check-ins yet';
+    const targetText = g.target!=null ? ` (target: ${g.target})` : '';
+    lines.push(`• ${g.title} — ${scoreText}${targetText}`);
+  });
+  lines.push('');
+
+  const allActions = load(SK.actions);
+  const openActions = allActions.filter(a => !a.completed && (!sinceLastShare || !since || a.createdDate > since));
+  const doneActions = allActions.filter(a => a.completed && (!sinceLastShare || !since || (a.completedDate||'') > since));
+  lines.push('ACTIONS');
+  if (!openActions.length && !doneActions.length) lines.push('None' + (sinceLastShare ? ' since last share.' : ' recorded yet.'));
+  if (openActions.length) {
+    lines.push('Open:');
+    openActions.forEach(a => lines.push(`  - ${a.description}`));
+  }
+  if (doneActions.length) {
+    lines.push('Completed:');
+    doneActions.forEach(a => lines.push(`  - ✓ ${a.description} (${fmtDate(a.completedDate)})`));
+  }
+  lines.push('');
+
+  const learnings = load(SK.learnings).filter(l => !sinceLastShare || !since || l.date > since).sort((a,b)=>b.date.localeCompare(a.date));
+  lines.push('LEARNINGS');
+  if (!learnings.length) lines.push('None' + (sinceLastShare ? ' since last share.' : ' recorded yet.'));
+  learnings.forEach(l => {
+    const themeNames = themeLabelsFor(l);
+    lines.push(`  - ${l.description} (${fmtDate(l.date)})${themeNames.length?` — theme: ${themeNames.join(', ')}`:''}`);
+  });
+  lines.push('');
+
+  const spots = load(SK.brightSpots).filter(b => !sinceLastShare || !since || b.date > since).sort((a,b)=>b.date.localeCompare(a.date));
+  lines.push('🌟 BRIGHT SPOTS');
+  if (!spots.length) lines.push('None' + (sinceLastShare ? ' since last share.' : ' recorded yet.'));
+  spots.forEach(b => {
+    const v = VALUES.find(x=>x.id===b.valueId);
+    lines.push(`  - ${b.description} (${fmtDate(b.date)})${v?` — ${v.label}`:''}`);
+  });
+
+  return lines.join('\n');
+}
+function openShareProgressModal() {
+  const since = getLastSharedDate();
+  const sinceLabel = since ? `Copy what's changed since ${fmtDate(since)}` : `Copy what's changed since last share (you haven't shared before — this will show everything)`;
+  const body = `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Choose the version to copy, then paste it into a text, email, or WhatsApp message to your accountability partner.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:1rem">
+      <button class="btn btn-primary" onclick="copyShareProgress(false, event)">📋 Copy full progress update</button>
+      <button class="btn btn-secondary" onclick="copyShareProgress(true, event)">📋 ${sinceLabel}</button>
+    </div>
+    <textarea id="shareProgressPreview" readonly style="width:100%;height:220px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5">${buildShareProgressText(false).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>`;
+  openModal('Share progress', body,
+    `<button class="btn btn-secondary" onclick="closeModal()">Close</button>`);
+}
+function copyShareProgress(sinceLastShare, evt) {
+  const text = buildShareProgressText(sinceLastShare);
+  const ta = document.getElementById('shareProgressPreview');
+  if (ta) ta.value = text;
+  if (ta) { ta.focus(); ta.select(); ta.setSelectionRange(0, 999999); }
+  try { document.execCommand && document.execCommand('copy'); } catch(e) {}
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text).catch(()=>{}); }
+  setLastSharedDate(today());
+  const btn = evt && evt.target;
+  if (btn) { const old = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>{ btn.textContent = old; }, 1500); }
+}
+
 function openScenarioContextModal() {
   const text = buildScenarioContext();
   const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3615,7 +3861,7 @@ function buildBackupData() {
     valueScores:load(SK.valueScores), goalCheckins:load(SK.goalCheckins),
     willSessions:load(SK.willSessions), skillSessions:load(SK.skillSessions), connectivitySessions:load(SK.connectivitySessions),
     skillCheckins:load(SK.skillCheckins), relevanceScores:load(SK.relevanceScores), tactics:load(SK.tactics),
-    actions:load(SK.actions), learnings:load(SK.learnings), themes:load(SK.themes), displayName:getDisplayName(),
+    actions:load(SK.actions), learnings:load(SK.learnings), themes:load(SK.themes), brightSpots:load(SK.brightSpots), displayName:getDisplayName(), lastSharedDate:getLastSharedDate(),
     scratchpad:load(SK.scratchpad), scratchpadCategories:SCRATCHPAD_CATEGORIES,
   };
 }
@@ -3694,9 +3940,11 @@ function applyRestoreData(data) {
   if (data.actions) save(SK.actions, data.actions);
   if (data.learnings) save(SK.learnings, data.learnings);
   if (data.themes) save(SK.themes, data.themes);
+  if (data.brightSpots) save(SK.brightSpots, data.brightSpots);
   if (data.scratchpad) save(SK.scratchpad, data.scratchpad);
   if (data.scratchpadCategories) { SCRATCHPAD_CATEGORIES = data.scratchpadCategories; saveScratchpadCategories(); }
   if (data.displayName!=null) setDisplayName(data.displayName);
+  if (data.lastSharedDate!=null) setLastSharedDate(data.lastSharedDate);
 }
 function importJSON(input) {
   const file = input.files[0]; if (!file) return;
@@ -3758,7 +4006,7 @@ function snapshotWorkspaceData(wsId) {
     valueScores: load(SK.valueScores), goalCheckins: load(SK.goalCheckins),
     willSessions: load(SK.willSessions), skillSessions: load(SK.skillSessions), connectivitySessions: load(SK.connectivitySessions),
     skillCheckins: load(SK.skillCheckins), relevanceScores: load(SK.relevanceScores), tactics: load(SK.tactics),
-    actions: load(SK.actions), learnings: load(SK.learnings), themes: load(SK.themes), displayName: wsGet(SK.displayName) || '',
+    actions: load(SK.actions), learnings: load(SK.learnings), themes: load(SK.themes), brightSpots: load(SK.brightSpots), displayName: wsGet(SK.displayName) || '', lastSharedDate: wsGet(SK.lastSharedDate) || '',
     scratchpad: load(SK.scratchpad), scratchpadCategories,
   };
   ACTIVE_WORKSPACE = prev;
@@ -3785,9 +4033,11 @@ function restoreWorkspaceData(wsId, data) {
   if (data.actions) save(SK.actions, data.actions);
   if (data.learnings) save(SK.learnings, data.learnings);
   if (data.themes) save(SK.themes, data.themes);
+  if (data.brightSpots) save(SK.brightSpots, data.brightSpots);
   if (data.scratchpad) save(SK.scratchpad, data.scratchpad);
   if (data.scratchpadCategories) save(SK.scratchpadCategories, data.scratchpadCategories);
   if (data.displayName!=null) wsSet(SK.displayName, data.displayName);
+  if (data.lastSharedDate!=null) wsSet(SK.lastSharedDate, data.lastSharedDate);
   wsSet('bb_seeded','1'); // don't let demo seeding overwrite restored data next time this workspace loads
   ACTIVE_WORKSPACE = prev;
 }
