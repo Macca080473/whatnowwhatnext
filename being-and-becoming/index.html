@@ -551,7 +551,7 @@ const SK = {
   skills:'bb_skills', skillCheckins:'bb_skill_checkins',
   relevanceCriteria:'bb_relevance_criteria', relevanceScores:'bb_relevance_scores', tactics:'bb_tactics',
   actions:'bb_actions', learnings:'bb_learnings', themes:'bb_learning_themes', brightSpots:'bb_bright_spots',
-  lastSharedDate:'bb_last_shared_date',
+  lastSharedDate:'bb_last_shared_date', cadenceBannerDismissed:'bb_cadence_banner_dismissed',
   displayName:'bb_display_name',
 };
 
@@ -1285,6 +1285,11 @@ function renderSnapshot() {
       ${GOALS.length ? goalRows : '<div class="empty-state" style="padding:1rem">No goals yet.</div>'}
     </div>
 
+    ${goalsCadenceDue().length ? `<div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">Goals worth revisiting</div>
+      ${goalsCadenceDue().map(g => `<div class="score-row"><span class="score-name">${escapeHtml(g.title)}</span><span style="font-size:12px;color:var(--text3)">${g.checkinCadence} rhythm</span></div>`).join('')}
+    </div>` : ''}
+
     <div class="three-col">
       <div class="card">
         <div style="font-weight:500;margin-bottom:.5rem">What currently resonates most</div>
@@ -1339,6 +1344,15 @@ function valuesGuideContentHtml() {
       <li style="margin-bottom:.4rem">Consider what you most admire in the behaviour of your heroes.</li>
       <li style="margin-bottom:.4rem">Consider values that you believe are important to model. Values that matter.</li>
       <li>Consider self-directed values (inwardly-satisfying, pursued for their own sake) as well as other-directed values (outwardly-validated, pursued as a means to an external outcome).</li>
+    </ol>
+    <div style="font-weight:500;margin:1.25rem 0 .5rem">What ongoing steps can I take?</div>
+    <ol style="font-size:14px;color:var(--text2);line-height:1.7;margin:0 0 0 1.25rem;padding:0">
+      <li style="margin-bottom:.4rem">Reflect on the extent to which you are living each of your values. If helpful, add some scores for how you're currently feeling.</li>
+      <li style="margin-bottom:.4rem">Think about any of your recent actions that are examples of you living a particular value. Add a Bright Spot to acknowledge it.</li>
+      <li style="margin-bottom:.4rem">Review this content (including changes in scores over time) and reflect whether there are any changes you'd like to make or specific actions you'd like to take.</li>
+      <li style="margin-bottom:.4rem">Write down any fully formed actions in the Actions tab.</li>
+      <li style="margin-bottom:.4rem">Write down any learnings you can take from your reflections in the Learnings tab.</li>
+      <li>Write down any work-in-progress thoughts that you'd still like to capture in the Scratchpad.</li>
     </ol>`;
 }
 function toggleValuesGuide() {
@@ -1348,6 +1362,44 @@ function toggleValuesGuide() {
   const showing = el.style.display !== 'none';
   el.style.display = showing ? 'none' : 'block';
   btn.textContent = showing ? 'Read the full guide to Values →' : 'Hide the guide to Values ↑';
+}
+function goalsGuideContentHtml() {
+  return `
+    <div style="font-weight:500;margin-bottom:.5rem">What are goals?</div>
+    <p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:1rem">Personal goals are specific, chosen outcomes or states a person commits to pursuing. A goal describes what you're trying to bring about: an achievement, a change of circumstance, a capability gained, a state reached. A goal is achievable (it can be met, missed, or abandoned).</p>
+    <div style="font-weight:500;margin-bottom:.5rem">How can I get started on defining and recording my goals?</div>
+    <ol style="font-size:14px;color:var(--text2);line-height:1.7;margin:0 0 0 1.25rem;padding:0">
+      <li style="margin-bottom:.4rem">Write a list of things you want to achieve that truly matter to you.</li>
+      <li style="margin-bottom:.4rem">Consider which of the seven life domains on which you want your goals to focus: primary relationships, friends & family, career & work, recreation & fun, finances, faith & spirituality, health & wellness.</li>
+      <li style="margin-bottom:.4rem">Consider whether you want to focus on short-term, medium-term or long-term goals.</li>
+      <li style="margin-bottom:.4rem">For long-term goals, consider what you might want to achieve by the end of your life in a specific domain to consider your life well-lived.</li>
+      <li style="margin-bottom:.4rem">Consider your values. If you're living out one of your values well a year from now, what would be different in your life? Conversely, does pursuing a goal require you to compromise any of your values?</li>
+      <li style="margin-bottom:.4rem">Consider these different types of goals:
+        <ol type="a" style="margin:.5rem 0 0 1.25rem;padding:0">
+          <li style="margin-bottom:.5rem"><strong>Outcome Goal.</strong> A specific external end state you're aiming for, whose achievement depends partly on factors beyond your full control — other people, circumstance, timing. It should be held as a target with acknowledged uncertainty, backed by performance and process goals beneath it to make it actionable. Example: "Win the Hendricks contract, worth £120k, by end of Q3."</li>
+          <li style="margin-bottom:.5rem"><strong>Performance Goal.</strong> A standard you set and assess for yourself, fully within your control, that serves as clear evidence of progress toward an outcome. It includes standards sustained over time (maintenance) as well as self-set bars for capability (mastery/learning). Example: "Score every client proposal against my 5-point quality checklist and hit a minimum of 4/5 on each one this quarter."</li>
+          <li><strong>Process Goal.</strong> A repeatable behaviour or practice, entirely within your control, that produces performance and outcomes over time — the doing itself is the goal. Rather than a deadline, it's held to a cadence, sustained indefinitely. Example: "Block two hours every Tuesday morning for deep proposal work, starting this week."</li>
+        </ol>
+      </li>
+      <li style="margin-bottom:.4rem">Make each of your goals a STRAM goal – specific, trackable, relevant, attainable and motivating.</li>
+      <li style="margin-bottom:.4rem">Set a review cadence, so you check in on goal progress on a regular basis.</li>
+      <li style="margin-bottom:.4rem">Describe goals using positive language – goals you want to achieve, rather than goals you want to avoid achieving.</li>
+      <li>Think about the source for the goal. Is this goal genuinely yours, or inherited/expected — from family, industry norms, comparison with peers?</li>
+    </ol>
+    <div style="font-weight:500;margin:1.25rem 0 .5rem">What ongoing steps can I take?</div>
+    <ul style="font-size:14px;color:var(--text2);line-height:1.7;margin:0 0 0 1.25rem;padding:0">
+      <li style="margin-bottom:.4rem">Reflect on how you are feeling about your goals, and the progress you are making towards them.</li>
+      <li style="margin-bottom:.4rem">Identify any actions or learnings that arise from this reflection.</li>
+      <li>As you make progress towards goals, think about the level of satisfaction this has given you, whether that satisfaction has sustained, or has the goal changed?</li>
+    </ul>`;
+}
+function toggleGoalsGuide() {
+  const el = document.getElementById('goalsGuideExpanded');
+  const btn = document.getElementById('goalsGuideToggleBtn');
+  if (!el || !btn) return;
+  const showing = el.style.display !== 'none';
+  el.style.display = showing ? 'none' : 'block';
+  btn.textContent = showing ? 'Read the full guide to Goals →' : 'Hide the guide to Goals ↑';
 }
 function renderValues() {
   let html = `
@@ -1382,7 +1434,7 @@ function renderValues() {
       const latest = list.length ? list[list.length-1] : null;
       html += `<div class="card-sm" style="margin-bottom:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}${brightSpotsFor(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🌟 ${brightSpotsFor(v.id).length}</span>`:''}</span>
+          <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}${brightSpotsFor(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🌟 ${brightSpotsFor(v.id).length}</span>`:''}${goalsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🎯 ${goalsForValue(v.id).length}</span>`:''}</span>
           ${latest?`<span style="font-size:18px;font-weight:500;color:var(--accent)">${latest.value}</span>`:''}
         </div>
         ${list.length>1?`<div class="chart-wrap-sm"><canvas id="valChart-${v.id}"></canvas></div>`:''}
@@ -2014,6 +2066,36 @@ function goalCurrentDisplay(g) {
   return { value: direct ? direct.value : null, isDerived:false };
 }
 
+// ── Goal check-in cadence — entirely opt-in, computed purely from data
+// already stored (latest check-in date + the chosen interval). No tracking,
+// no notifications — see "A few habits worth building" in the guide for why:
+// this only ever shows as quiet text, same weight as "Last check-in: X ago",
+// never a badge or a colour, and only appears at all if the person chose a
+// rhythm for that specific goal in the first place.
+function cadenceDays(cadence) {
+  return { weekly: 7, monthly: 30, quarterly: 90 }[cadence] || null;
+}
+function goalCadenceElapsed(g) {
+  if (!g.checkinCadence) return false;
+  const days = cadenceDays(g.checkinCadence);
+  const latest = goalCardHtml(g, false).latest;
+  if (!latest) return false; // nothing to measure elapsed time from yet
+  const daysSince = Math.floor((new Date(today()) - new Date(latest.date)) / 86400000);
+  return daysSince >= days;
+}
+function goalsCadenceDue() {
+  return GOALS.filter(g => goalCadenceElapsed(g));
+}
+function shouldShowCadenceBanner() {
+  if (wsGet(SK.cadenceBannerDismissed)) return false;
+  if (GOALS.some(g => g.checkinCadence)) return false; // already using it somewhere
+  return GOALS.some(g => goalCardHtml(g, false).latest); // at least one goal has ≥1 check-in
+}
+function dismissCadenceBanner() {
+  wsSet(SK.cadenceBannerDismissed, true);
+  renderGoals();
+}
+
 function goalCardHtml(item, isSubGoal) {
   const idField = isSubGoal ? 'subGoalId' : 'goalId';
   const list = load(SK.goalCheckins).filter(c => isSubGoal ? c.subGoalId===item.id : (c.goalId===item.id && !c.subGoalId))
@@ -2031,8 +2113,19 @@ function renderGoals() {
       <button class="btn btn-secondary btn-sm" onclick="openManageGoals()">Manage goals</button>
     </div>`;
 
+  if (shouldShowCadenceBanner()) {
+    html += `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:13px;color:var(--text2)">Would a regular rhythm help with any of your goals?</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="dismissCadenceBanner(); openManageGoals()">Set one up</button>
+        <button class="btn btn-secondary btn-sm" onclick="dismissCadenceBanner()">Not for me</button>
+      </div>
+    </div>`;
+  }
+
   if (!GOALS.length) {
-    html += `<div class="empty-state">No goals yet. Use <strong>Manage goals</strong> to add your first one.</div>`;
+    html += `<div class="card">${goalsGuideContentHtml()}</div>
+      <div class="empty-state">No goals yet. Use <strong>Manage goals</strong> to add your first one.</div>`;
   }
 
   GOALS.forEach(g => {
@@ -2044,6 +2137,7 @@ function renderGoals() {
           <div style="font-weight:500;font-size:14px">${escapeHtml(g.title)}</div>
           <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
             ${g.category?`<span class="tag">${escapeHtml(g.category)}</span>`:''}
+            ${g.valueId?(()=>{const v=VALUES.find(x=>x.id===g.valueId);return v?`<span class="tag" style="color:var(--accent)">${escapeHtml(v.label)}</span>`:'';})():''}
             ${g.dueDate?`<span style="font-size:11px;color:var(--text3)">Around ${fmtDate(g.dueDate)}</span>`:''}
             ${brightSpotCountForGoal(g.id)?`<span style="font-size:11px;color:var(--accent)">🌟 ${brightSpotCountForGoal(g.id)} bright spot${brightSpotCountForGoal(g.id)===1?'':'s'}</span>`:''}
           </div>
@@ -2075,6 +2169,12 @@ function renderGoals() {
     <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Goal Relevance lets you set criteria for a specific goal and score different tactics against them, so you can compare potential paths to it directly.</p>
     <button class="btn btn-secondary btn-sm" onclick="showView('relevance')">Open Goal Relevance →</button>
   </div>`;
+
+  if (GOALS.length) {
+    html += `
+      <button id="goalsGuideToggleBtn" class="btn btn-secondary btn-sm" style="margin-top:1rem" onclick="toggleGoalsGuide()">Read the full guide to Goals →</button>
+      <div id="goalsGuideExpanded" class="card" style="display:none;margin-top:.75rem">${goalsGuideContentHtml()}</div>`;
+  }
 
   document.getElementById('goals').innerHTML = html;
 
@@ -2119,6 +2219,7 @@ function goalItemBodyHtml(item, isSubGoal, goalId) {
     ${hasSubGoals && latest ? statusNote : ''}
     ${(list.length>1 || derivedTrendAvailable)?`<div class="chart-wrap-sm"><canvas id="${trendId}"></canvas></div>`:''}
     ${latest?`<div class="updated-row">Last check-in: ${fmtDate(latest.date)} (${timeSince(latest.date)} ago)</div>`:(hasSubGoals?statusNote:'<div class="updated-row">No check-ins yet</div>')}
+    ${!isSubGoal && goalCadenceElapsed(item) ? `<div class="updated-row" style="color:var(--accent-dk)">Worth a check-in? You set a ${item.checkinCadence} rhythm for this one.</div>` : ''}
     ${latest && latest.note ? `<p style="font-size:13px;color:var(--text2);margin-top:6px"><em>${escapeHtml(latest.note)}</em></p>`:''}
     ${latest && latest.proudOf ? `<p style="font-size:13px;color:var(--accent);margin-top:4px">Proud of: ${escapeHtml(latest.proudOf)}</p>`:''}
     <div style="display:flex;gap:6px;margin-top:8px">
@@ -2201,6 +2302,21 @@ function openEditGoal(goalId) {
     <div class="field-group"><label class="field-label">Target <span style="font-weight:400;color:var(--text3)">(optional — a score you're aiming for, just for your own reference)</span></label>
       <input type="number" id="mgGoalTarget" min="0" max="10" step="0.5" value="${g?.target ?? ''}" placeholder="e.g. 8">
     </div>
+    <div class="field-group"><label class="field-label">Check-in rhythm <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <select id="mgGoalCadence">
+        <option value="" ${!g?.checkinCadence?'selected':''}>No set rhythm</option>
+        <option value="weekly" ${g?.checkinCadence==='weekly'?'selected':''}>Weekly</option>
+        <option value="monthly" ${g?.checkinCadence==='monthly'?'selected':''}>Monthly</option>
+        <option value="quarterly" ${g?.checkinCadence==='quarterly'?'selected':''}>Quarterly</option>
+      </select>
+      <p class="field-hint">Entirely optional — this just decides when we'll gently mention it might be worth a look.</p>
+    </div>
+    <div class="field-group"><label class="field-label">Value <span style="font-weight:400;color:var(--text3)">(optional — which value does this goal most reflect?)</span></label>
+      <select id="mgGoalValue">
+        <option value="">— No specific value —</option>
+        ${VALUES.map(v=>`<option value="${v.id}" ${g?.valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}
+      </select>
+    </div>
     <div class="field-group">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="mgGoalShareable" ${(!g || g.shareWithPartner!==false)?'checked':''}>
@@ -2243,14 +2359,16 @@ function saveGoalMeta(goalId) {
   const dueDate = document.getElementById('mgGoalDate').value;
   const targetRaw = document.getElementById('mgGoalTarget').value;
   const target = targetRaw!=='' && targetRaw!=null ? Math.max(0,Math.min(10,parseFloat(targetRaw))) : null;
+  const valueId = document.getElementById('mgGoalValue').value || null;
+  const checkinCadence = document.getElementById('mgGoalCadence').value || null;
   const shareWithPartner = document.getElementById('mgGoalShareable').checked;
   if (!goalId) {
     const id = 'g_'+uid();
-    GOALS.push({ id, title, category, notes, dueDate, target, shareWithPartner, subGoals:[] });
+    GOALS.push({ id, title, category, notes, dueDate, target, valueId, checkinCadence, shareWithPartner, subGoals:[] });
     saveGoals();
     openEditGoal(id);
   } else {
-    Object.assign(findGoal(goalId), { title, category, notes, dueDate, target, shareWithPartner });
+    Object.assign(findGoal(goalId), { title, category, notes, dueDate, target, valueId, checkinCadence, shareWithPartner });
     saveGoals();
     openManageGoals();
   }
@@ -3341,6 +3459,9 @@ function brightSpotsFor(valueId) {
 }
 function brightSpotCountForGoal(goalId) {
   return load(SK.brightSpots).filter(b=>b.goalId===goalId).length;
+}
+function goalsForValue(valueId) {
+  return GOALS.filter(g=>g.valueId===valueId);
 }
 function openAddBrightSpot(valueId) {
   const body = `
