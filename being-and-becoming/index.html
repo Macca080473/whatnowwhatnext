@@ -551,7 +551,7 @@ const SK = {
   skills:'bb_skills', skillCheckins:'bb_skill_checkins',
   relevanceCriteria:'bb_relevance_criteria', relevanceScores:'bb_relevance_scores', tactics:'bb_tactics',
   actions:'bb_actions', learnings:'bb_learnings', themes:'bb_learning_themes', brightSpots:'bb_bright_spots',
-  lastSharedDate:'bb_last_shared_date', cadenceBannerDismissed:'bb_cadence_banner_dismissed',
+  lastSharedDate:'bb_last_shared_date', cadenceBannerDismissed:'bb_cadence_banner_dismissed', goalsGroupCadence:'bb_goals_group_cadence',
   displayName:'bb_display_name',
 };
 
@@ -1287,7 +1287,7 @@ function renderSnapshot() {
 
     ${goalsCadenceDue().length ? `<div class="card">
       <div style="font-weight:500;margin-bottom:.5rem">Goals worth revisiting</div>
-      ${goalsCadenceDue().map(g => `<div class="score-row"><span class="score-name">${escapeHtml(g.title)}</span><span style="font-size:12px;color:var(--text3)">${g.checkinCadence} rhythm</span></div>`).join('')}
+      ${goalsCadenceDue().map(g => `<div class="score-row"><span class="score-name">${escapeHtml(g.title)}</span><span style="font-size:12px;color:var(--text3)">${effectiveCadence(g)} rhythm</span></div>`).join('')}
     </div>` : ''}
 
     <div class="three-col">
@@ -2072,12 +2072,32 @@ function goalCurrentDisplay(g) {
 // this only ever shows as quiet text, same weight as "Last check-in: X ago",
 // never a badge or a colour, and only appears at all if the person chose a
 // rhythm for that specific goal in the first place.
+//
+// A goal's cadence has three possible modes (g.cadenceMode):
+//   'none'     — no rhythm at all (default)
+//   'aligned'  — follows the shared "all goals" rhythm (see getGoalsGroupCadence),
+//                a live link, not a copy — changing the group rhythm updates every
+//                aligned goal automatically, no need to touch each one
+//   'distinct' — this goal's own rhythm (g.checkinCadence), independent of the group
 function cadenceDays(cadence) {
   return { weekly: 7, monthly: 30, quarterly: 90 }[cadence] || null;
 }
+function getGoalsGroupCadence() { return wsGet(SK.goalsGroupCadence) || ''; }
+function setGoalsGroupCadence(cadence) { wsSet(SK.goalsGroupCadence, cadence || ''); }
+function goalCadenceMode(g) {
+  // Backward-compatible with goals saved before "aligned" existed.
+  return g.cadenceMode || (g.checkinCadence ? 'distinct' : 'none');
+}
+function effectiveCadence(g) {
+  const mode = goalCadenceMode(g);
+  if (mode === 'aligned') return getGoalsGroupCadence() || null;
+  if (mode === 'distinct') return g.checkinCadence || null;
+  return null;
+}
 function goalCadenceElapsed(g) {
-  if (!g.checkinCadence) return false;
-  const days = cadenceDays(g.checkinCadence);
+  const cadence = effectiveCadence(g);
+  if (!cadence) return false;
+  const days = cadenceDays(cadence);
   const latest = goalCardHtml(g, false).latest;
   if (!latest) return false; // nothing to measure elapsed time from yet
   const daysSince = Math.floor((new Date(today()) - new Date(latest.date)) / 86400000);
@@ -2088,11 +2108,33 @@ function goalsCadenceDue() {
 }
 function shouldShowCadenceBanner() {
   if (wsGet(SK.cadenceBannerDismissed)) return false;
-  if (GOALS.some(g => g.checkinCadence)) return false; // already using it somewhere
+  if (getGoalsGroupCadence()) return false; // already using it somewhere
+  if (GOALS.some(g => goalCadenceMode(g) !== 'none')) return false;
   return GOALS.some(g => goalCardHtml(g, false).latest); // at least one goal has ≥1 check-in
 }
 function dismissCadenceBanner() {
   wsSet(SK.cadenceBannerDismissed, true);
+  renderGoals();
+}
+function setSharedCadenceFromBanner() {
+  const body = `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">How often would it help to review all your goals together?</p>
+    <div class="field-group"><select id="sharedCadencePick">
+      <option value="weekly">Weekly</option>
+      <option value="monthly" selected>Monthly</option>
+      <option value="quarterly">Quarterly</option>
+    </select></div>`;
+  openModal('Set a shared rhythm', body,
+    `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="confirmSharedCadenceFromBanner()">Save</button>`);
+}
+function confirmSharedCadenceFromBanner() {
+  const cadence = document.getElementById('sharedCadencePick').value;
+  setGoalsGroupCadence(cadence);
+  GOALS.forEach(g => { g.cadenceMode = 'aligned'; });
+  saveGoals();
+  dismissCadenceBanner();
+  closeModal();
   renderGoals();
 }
 
@@ -2116,8 +2158,9 @@ function renderGoals() {
   if (shouldShowCadenceBanner()) {
     html += `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
       <span style="font-size:13px;color:var(--text2)">Would a regular rhythm help with any of your goals?</span>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary btn-sm" onclick="dismissCadenceBanner(); openManageGoals()">Set one up</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="setSharedCadenceFromBanner()">One rhythm for all goals</button>
+        <button class="btn btn-secondary btn-sm" onclick="dismissCadenceBanner(); openManageGoals()">Set up per goal</button>
         <button class="btn btn-secondary btn-sm" onclick="dismissCadenceBanner()">Not for me</button>
       </div>
     </div>`;
@@ -2219,7 +2262,7 @@ function goalItemBodyHtml(item, isSubGoal, goalId) {
     ${hasSubGoals && latest ? statusNote : ''}
     ${(list.length>1 || derivedTrendAvailable)?`<div class="chart-wrap-sm"><canvas id="${trendId}"></canvas></div>`:''}
     ${latest?`<div class="updated-row">Last check-in: ${fmtDate(latest.date)} (${timeSince(latest.date)} ago)</div>`:(hasSubGoals?statusNote:'<div class="updated-row">No check-ins yet</div>')}
-    ${!isSubGoal && goalCadenceElapsed(item) ? `<div class="updated-row" style="color:var(--accent-dk)">Worth a check-in? You set a ${item.checkinCadence} rhythm for this one.</div>` : ''}
+    ${!isSubGoal && goalCadenceElapsed(item) ? `<div class="updated-row" style="color:var(--accent-dk)">Worth a check-in? ${goalCadenceMode(item)==='aligned'?`You're reviewing goals ${effectiveCadence(item)}, together with the rest.`:`You set a ${effectiveCadence(item)} rhythm for this one.`}</div>` : ''}
     ${latest && latest.note ? `<p style="font-size:13px;color:var(--text2);margin-top:6px"><em>${escapeHtml(latest.note)}</em></p>`:''}
     ${latest && latest.proudOf ? `<p style="font-size:13px;color:var(--accent);margin-top:4px">Proud of: ${escapeHtml(latest.proudOf)}</p>`:''}
     <div style="display:flex;gap:6px;margin-top:8px">
@@ -2234,7 +2277,19 @@ function revertGoalToAverage(goalId) {
 }
 
 function openManageGoals() {
-  let body = GOALS.length ? GOALS.map((g,i)=>`
+  let body = `
+    <div class="field-group">
+      <label class="field-label">Review rhythm for all goals <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <select id="mgGoalsGroupCadence" onchange="setGoalsGroupCadence(this.value)">
+        <option value="" ${!getGoalsGroupCadence()?'selected':''}>No set rhythm</option>
+        <option value="weekly" ${getGoalsGroupCadence()==='weekly'?'selected':''}>Weekly</option>
+        <option value="monthly" ${getGoalsGroupCadence()==='monthly'?'selected':''}>Monthly</option>
+        <option value="quarterly" ${getGoalsGroupCadence()==='quarterly'?'selected':''}>Quarterly</option>
+      </select>
+      <p class="field-hint">Any goal set to "align with my other goals" (in Edit Goal) follows this automatically — change it here once and every aligned goal updates, no need to touch each one.</p>
+    </div>
+    <div class="divider"></div>`;
+  body += GOALS.length ? GOALS.map((g,i)=>`
     <div class="manage-row">
       <div style="display:flex;flex-direction:column;gap:2px">
         <button class="btn btn-secondary btn-sm" style="padding:2px 8px" onclick="moveGoal('${g.id}',-1)" ${i===0?'disabled':''}>▲</button>
@@ -2303,13 +2358,28 @@ function openEditGoal(goalId) {
       <input type="number" id="mgGoalTarget" min="0" max="10" step="0.5" value="${g?.target ?? ''}" placeholder="e.g. 8">
     </div>
     <div class="field-group"><label class="field-label">Check-in rhythm <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
-      <select id="mgGoalCadence">
-        <option value="" ${!g?.checkinCadence?'selected':''}>No set rhythm</option>
-        <option value="weekly" ${g?.checkinCadence==='weekly'?'selected':''}>Weekly</option>
-        <option value="monthly" ${g?.checkinCadence==='monthly'?'selected':''}>Monthly</option>
-        <option value="quarterly" ${g?.checkinCadence==='quarterly'?'selected':''}>Quarterly</option>
+      <select id="mgGoalCadenceMode" onchange="onGoalCadenceModeChange()">
+        <option value="none" ${goalCadenceMode(g||{})==='none'?'selected':''}>No set rhythm</option>
+        <option value="aligned" ${goalCadenceMode(g||{})==='aligned'?'selected':''}>Align with when I review my other goals</option>
+        <option value="distinct" ${goalCadenceMode(g||{})==='distinct'?'selected':''}>Set a rhythm just for this goal</option>
       </select>
       <p class="field-hint">Entirely optional — this just decides when we'll gently mention it might be worth a look.</p>
+      <div id="mgGoalCadenceDistinctWrap" style="display:${goalCadenceMode(g||{})==='distinct'?'block':'none'};margin-top:.5rem">
+        <select id="mgGoalCadence">
+          <option value="weekly" ${g?.checkinCadence==='weekly'?'selected':''}>Weekly</option>
+          <option value="monthly" ${(!g||!g.checkinCadence||g.checkinCadence==='monthly')?'selected':''}>Monthly</option>
+          <option value="quarterly" ${g?.checkinCadence==='quarterly'?'selected':''}>Quarterly</option>
+        </select>
+      </div>
+      <div id="mgGoalCadenceAlignedWrap" style="display:${goalCadenceMode(g||{})==='aligned'?'block':'none'};margin-top:.5rem">
+        ${getGoalsGroupCadence() ? `<p class="field-hint" style="margin:0">Currently reviewing all goals <strong>${getGoalsGroupCadence()}</strong> — change this anytime from Manage Goals.</p>` : `
+        <p class="field-hint" style="margin:0 0 .35rem">You don't have a shared rhythm set up yet — pick one now and it'll apply to this goal (and any others you later align):</p>
+        <select id="mgGoalCadenceNewGroup">
+          <option value="weekly">Weekly</option>
+          <option value="monthly" selected>Monthly</option>
+          <option value="quarterly">Quarterly</option>
+        </select>`}
+      </div>
     </div>
     <div class="field-group"><label class="field-label">Value <span style="font-weight:400;color:var(--text3)">(optional — which value does this goal most reflect?)</span></label>
       <select id="mgGoalValue">
@@ -2351,6 +2421,13 @@ function moveSubGoal(goalId, sgId, direction) {
   saveGoals();
   openEditGoal(goalId);
 }
+function onGoalCadenceModeChange() {
+  const mode = document.getElementById('mgGoalCadenceMode').value;
+  const distinctWrap = document.getElementById('mgGoalCadenceDistinctWrap');
+  const alignedWrap = document.getElementById('mgGoalCadenceAlignedWrap');
+  if (distinctWrap) distinctWrap.style.display = mode==='distinct' ? 'block' : 'none';
+  if (alignedWrap) alignedWrap.style.display = mode==='aligned' ? 'block' : 'none';
+}
 function saveGoalMeta(goalId) {
   const title = document.getElementById('mgGoalTitle').value.trim();
   if (!title) { alert('Please enter a goal.'); return; }
@@ -2360,15 +2437,23 @@ function saveGoalMeta(goalId) {
   const targetRaw = document.getElementById('mgGoalTarget').value;
   const target = targetRaw!=='' && targetRaw!=null ? Math.max(0,Math.min(10,parseFloat(targetRaw))) : null;
   const valueId = document.getElementById('mgGoalValue').value || null;
-  const checkinCadence = document.getElementById('mgGoalCadence').value || null;
+  const cadenceMode = document.getElementById('mgGoalCadenceMode').value;
+  let checkinCadence = null;
+  if (cadenceMode === 'distinct') {
+    checkinCadence = document.getElementById('mgGoalCadence').value || 'monthly';
+  } else if (cadenceMode === 'aligned' && !getGoalsGroupCadence()) {
+    // No shared rhythm exists yet — the one picked right here becomes it (agreed Aug 2026).
+    const newGroupEl = document.getElementById('mgGoalCadenceNewGroup');
+    if (newGroupEl) setGoalsGroupCadence(newGroupEl.value);
+  }
   const shareWithPartner = document.getElementById('mgGoalShareable').checked;
   if (!goalId) {
     const id = 'g_'+uid();
-    GOALS.push({ id, title, category, notes, dueDate, target, valueId, checkinCadence, shareWithPartner, subGoals:[] });
+    GOALS.push({ id, title, category, notes, dueDate, target, valueId, cadenceMode, checkinCadence, shareWithPartner, subGoals:[] });
     saveGoals();
     openEditGoal(id);
   } else {
-    Object.assign(findGoal(goalId), { title, category, notes, dueDate, target, valueId, checkinCadence, shareWithPartner });
+    Object.assign(findGoal(goalId), { title, category, notes, dueDate, target, valueId, cadenceMode, checkinCadence, shareWithPartner });
     saveGoals();
     openManageGoals();
   }
