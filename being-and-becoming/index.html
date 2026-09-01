@@ -552,6 +552,7 @@ const SK = {
   relevanceCriteria:'bb_relevance_criteria', relevanceScores:'bb_relevance_scores', tactics:'bb_tactics',
   actions:'bb_actions', learnings:'bb_learnings', themes:'bb_learning_themes', brightSpots:'bb_bright_spots',
   lastSharedDate:'bb_last_shared_date', cadenceBannerDismissed:'bb_cadence_banner_dismissed', goalsGroupCadence:'bb_goals_group_cadence',
+  shareTrendWill:'bb_share_trend_will', shareTrendSkill:'bb_share_trend_skill', shareTrendConnectivity:'bb_share_trend_connectivity',
   displayName:'bb_display_name',
 };
 
@@ -1326,6 +1327,11 @@ function renderSnapshot() {
       <div style="font-weight:500;margin-bottom:.5rem">📊 Snapshot for your own analysis</div>
       <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">Everything in this log as a spreadsheet, one sheet per section — for digging in deeper than the app's own charts allow. One-way: this isn't restorable, it's just for reading elsewhere.</p>
       <button class="btn btn-secondary" onclick="exportExcel()">📊 Snapshot for your own analysis</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">🎉 The last 12 months</div>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">A quiet, celebratory look back — actions completed, learnings added, bright spots noticed, targets reached. No comparisons, no rankings, just what's actually happened.</p>
+      <button class="btn btn-secondary" onclick="openRecapModal()">🎉 See the last 12 months</button>
     </div>`;
 }
 
@@ -1677,6 +1683,12 @@ function openEditValue(id) {
       </select>
     </div>
     <div class="field-group">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="mgValShareTrend" ${v?.shareTrend?'checked':''}>
+        Include this value's trend (rising/steady/dipped — never the score) in my accountability partner snapshot
+      </label>
+    </div>
+    <div class="field-group">
       <details>
         <summary style="cursor:pointer;font-size:13px;color:var(--text2)">Browse suggested values</summary>
         ${pickerHtml('self-directed', 'Self-directed')}
@@ -1691,8 +1703,9 @@ function saveValue(id) {
   const label = document.getElementById('mgValLabel').value.trim();
   if (!label) { alert('Please enter a value.'); return; }
   const type = document.getElementById('mgValType').value;
-  if (!id) VALUES.push({ id:'v_'+uid(), label, type });
-  else Object.assign(VALUES.find(x=>x.id===id), { label, type });
+  const shareTrend = document.getElementById('mgValShareTrend').checked;
+  if (!id) VALUES.push({ id:'v_'+uid(), label, type, shareTrend, createdDate: today() });
+  else Object.assign(VALUES.find(x=>x.id===id), { label, type, shareTrend });
   saveValues();
   openManageValues();
 }
@@ -2449,7 +2462,7 @@ function saveGoalMeta(goalId) {
   const shareWithPartner = document.getElementById('mgGoalShareable').checked;
   if (!goalId) {
     const id = 'g_'+uid();
-    GOALS.push({ id, title, category, notes, dueDate, target, valueId, cadenceMode, checkinCadence, shareWithPartner, subGoals:[] });
+    GOALS.push({ id, title, category, notes, dueDate, target, valueId, cadenceMode, checkinCadence, shareWithPartner, createdDate: today(), subGoals:[] });
     saveGoals();
     openEditGoal(id);
   } else {
@@ -2568,6 +2581,159 @@ function subDimSessionAvg(session, statementIds) {
   const vals = statementIds.map(id=>session.responses[id]).filter(v=>v!=null);
   return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
 }
+// ── Trend computation — rising/steady/dipped only, never the actual score.
+// Compares the latest entry against whichever entry sits closest to (but not
+// after) 90 days before it, falling back to the earliest available entry if
+// nothing's that old yet. A delta of ±1 or more counts as a real move;
+// anything smaller reads as steady rather than over-interpreting noise.
+function computeTrend(sortedEntries) {
+  if (!sortedEntries || sortedEntries.length < 2) return null;
+  const latest = sortedEntries[sortedEntries.length-1];
+  const cutoff = new Date(latest.date); cutoff.setDate(cutoff.getDate() - 90);
+  let reference = null;
+  for (let i = sortedEntries.length - 2; i >= 0; i--) {
+    if (new Date(sortedEntries[i].date) <= cutoff) { reference = sortedEntries[i]; break; }
+  }
+  if (!reference) reference = sortedEntries[0];
+  const delta = latest.value - reference.value;
+  if (delta >= 1) return 'rising';
+  if (delta <= -1) return 'dipped';
+  return 'steady';
+}
+function valueTrend(valueId) {
+  const entries = checkinsFor(SK.valueScores, 'valueId', valueId).map(c=>({date:c.date, value:c.value}));
+  return computeTrend(entries);
+}
+function dimTrend(dim) {
+  const sessions = load(SK[dim+'Sessions']).sort((a,b)=>a.date.localeCompare(b.date));
+  const entries = sessions.map(s=>{ const v = dimSessionAvg(s, dim); return v!=null ? {date:s.date, value:v} : null; }).filter(Boolean);
+  return computeTrend(entries);
+}
+
+// ── Timeline engine — internal only for now (no visible standalone tab yet,
+// agreed Aug 2026). Aggregates "notable" events across data that's already
+// stored, for the 12-month recap and the accountability-partner narrative.
+// A "notable" score rise is a delta of 1.5 or more between consecutive
+// check-ins — enough to filter out routine noise, not every small move.
+const SCORE_RISE_THRESHOLD = 1.5;
+function buildTimeline(sinceDate) {
+  const events = [];
+  const after = d => !sinceDate || d > sinceDate;
+
+  // Value score rises + new values added
+  VALUES.forEach(v => {
+    if (v.createdDate && after(v.createdDate)) events.push({ date: v.createdDate, type:'value_added', text: `Added a new value: ${v.label}` });
+    const entries = checkinsFor(SK.valueScores, 'valueId', v.id);
+    for (let i=1;i<entries.length;i++) {
+      const delta = entries[i].value - entries[i-1].value;
+      if (delta >= SCORE_RISE_THRESHOLD && after(entries[i].date)) {
+        events.push({ date: entries[i].date, type:'value_rise', text: `${v.label} rose from ${entries[i-1].value} to ${entries[i].value}` });
+      }
+    }
+  });
+
+  // Goal score rises, targets achieved, new goals added
+  GOALS.forEach(g => {
+    if (g.createdDate && after(g.createdDate)) events.push({ date: g.createdDate, type:'goal_added', text: `Added a new goal: ${g.title}` });
+    const entries = checkinsFor(SK.goalCheckins, 'goalId', g.id);
+    for (let i=0;i<entries.length;i++) {
+      if (i>0) {
+        const delta = entries[i].value - entries[i-1].value;
+        if (delta >= SCORE_RISE_THRESHOLD && after(entries[i].date)) {
+          events.push({ date: entries[i].date, type:'goal_rise', text: `"${g.title}" rose from ${entries[i-1].value} to ${entries[i].value}` });
+        }
+      }
+      if (g.target!=null && entries[i].value >= g.target && (i===0 || entries[i-1].value < g.target) && after(entries[i].date)) {
+        events.push({ date: entries[i].date, type:'goal_target', text: `Hit your target of ${g.target} on "${g.title}"` });
+      }
+    }
+  });
+
+  // WSC dimension rises
+  ['will','skill','connectivity'].forEach(dim => {
+    const sessions = load(SK[dim+'Sessions']).sort((a,b)=>a.date.localeCompare(b.date));
+    const entries = sessions.map(s=>{ const v = dimSessionAvg(s, dim); return v!=null ? {date:s.date, value:v} : null; }).filter(Boolean);
+    for (let i=1;i<entries.length;i++) {
+      const delta = entries[i].value - entries[i-1].value;
+      if (delta >= SCORE_RISE_THRESHOLD && after(entries[i].date)) {
+        const label = dim.charAt(0).toUpperCase()+dim.slice(1);
+        events.push({ date: entries[i].date, type:'dim_rise', text: `${label} rose from ${entries[i-1].value.toFixed(1)} to ${entries[i].value.toFixed(1)}` });
+      }
+    }
+  });
+
+  // Actions completed
+  load(SK.actions).filter(a=>a.completed && a.completedDate && after(a.completedDate)).forEach(a => {
+    events.push({ date: a.completedDate, type:'action_completed', text: `Completed: ${a.description}` });
+  });
+
+  // Learnings added
+  load(SK.learnings).filter(l=>l.date && after(l.date)).forEach(l => {
+    events.push({ date: l.date, type:'learning_added', text: `Learning: ${l.description}` });
+  });
+
+  // Bright Spots added
+  load(SK.brightSpots).filter(b=>b.date && after(b.date)).forEach(b => {
+    events.push({ date: b.date, type:'bright_spot_added', text: `Bright Spot: ${b.description}` });
+  });
+
+  return events.sort((a,b)=>a.date.localeCompare(b.date));
+}
+function buildRecapText() {
+  const oneYearAgo = new Date(); oneYearAgo.setFullYear(oneYearAgo.getFullYear()-1);
+  const sinceDate = oneYearAgo.toISOString().slice(0,10);
+  const events = buildTimeline(sinceDate);
+  const lines = [`The last 12 months`, ''];
+
+  if (!events.length) {
+    lines.push("Not much recorded in this workspace over the last year yet — come back once you've had a chance to use it a bit more.");
+    return lines.join('\n');
+  }
+
+  const byType = t => events.filter(e=>e.type===t);
+  const counts = {
+    actions: byType('action_completed').length,
+    learnings: byType('learning_added').length,
+    brightSpots: byType('bright_spot_added').length,
+    goalsAdded: byType('goal_added').length,
+  };
+  const bits = [];
+  if (counts.actions) bits.push(`completed ${counts.actions} action${counts.actions===1?'':'s'}`);
+  if (counts.learnings) bits.push(`added ${counts.learnings} learning${counts.learnings===1?'':'s'}`);
+  if (counts.brightSpots) bits.push(`noticed ${counts.brightSpots} bright spot${counts.brightSpots===1?'':'s'}`);
+  if (counts.goalsAdded) bits.push(`set ${counts.goalsAdded} new goal${counts.goalsAdded===1?'':'s'}`);
+  if (bits.length) lines.push(`Over the last year, you ${bits.join(', ')}.`);
+
+  const targets = byType('goal_target');
+  if (targets.length) {
+    lines.push('', 'Targets reached:');
+    targets.forEach(e => lines.push(`  - ${e.text} (${fmtDate(e.date)})`));
+  }
+  const rises = [...byType('goal_rise'), ...byType('value_rise'), ...byType('dim_rise')];
+  if (rises.length) {
+    lines.push('', 'Notable rises:');
+    rises.forEach(e => lines.push(`  - ${e.text} (${fmtDate(e.date)})`));
+  }
+  return lines.join('\n');
+}
+function openRecapModal() {
+  const text = buildRecapText();
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const body = `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">A quiet look back at the last 12 months in this workspace — generated fresh each time, just for you.</p>
+    <textarea id="recapText" readonly style="width:100%;height:280px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5">${escaped}</textarea>`;
+  openModal('The last 12 months', body,
+    `<button class="btn btn-secondary" onclick="closeModal()">Close</button>
+     <button class="btn btn-primary" onclick="copyRecapToClipboard(event)">📋 Copy</button>`);
+}
+function copyRecapToClipboard(evt) {
+  const ta = document.getElementById('recapText'); if (!ta) return;
+  ta.focus(); ta.select(); ta.setSelectionRange(0, 999999);
+  try { document.execCommand && document.execCommand('copy'); } catch(e) {}
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(ta.value).catch(()=>{}); }
+  const btn = evt && evt.target;
+  if (btn) { const old = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>{ btn.textContent = old; }, 1500); }
+}
 function skillSetsForLabel(label) {
   return SKILL_SETS.filter(ss => ss.subSkills.some(sub => sub.toLowerCase()===String(label).toLowerCase())).map(ss=>ss.label);
 }
@@ -2634,6 +2800,23 @@ function renderWSC() {
     <div class="section-head">
       <div><div class="eyebrow">Dimensions</div><div class="section-title">Will, Skill & Connectivity</div>
         <div class="guide-q">"Do I have a level of will, skill and connectivity that feels like I am thriving?"</div></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">Accountability partner sharing</div>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:.5rem">Off by default. If turned on, your accountability partner snapshot notes the trend only — rising, steady, or dipped — never the actual score.</p>
+      <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer">
+        <input type="checkbox" ${wsGet(SK.shareTrendWill)?'checked':''} onchange="wsSet(SK.shareTrendWill, this.checked)">
+        Include Will's trend
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer">
+        <input type="checkbox" ${wsGet(SK.shareTrendSkill)?'checked':''} onchange="wsSet(SK.shareTrendSkill, this.checked)">
+        Include Skill's trend
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer">
+        <input type="checkbox" ${wsGet(SK.shareTrendConnectivity)?'checked':''} onchange="wsSet(SK.shareTrendConnectivity, this.checked)">
+        Include Connectivity's trend
+      </label>
     </div>
 
     <div class="section-label" style="margin-top:0">Skill</div>
@@ -3958,6 +4141,25 @@ function buildShareProgressText(sinceLastShare) {
   if (sinceLastShare && since) lines.push(`(everything since ${fmtDate(since)})`);
   lines.push('');
 
+  // Narrative opening — only for "since last share," where a short prose summary
+  // of what's new reads naturally. The full snapshot below is already a complete
+  // current picture, so it doesn't need a recap layered on top of it.
+  if (sinceLastShare && since) {
+    const events = buildTimeline(since).filter(e => ['action_completed','learning_added','bright_spot_added','goal_added','goal_target'].includes(e.type));
+    if (events.length) {
+      const c = t => events.filter(e=>e.type===t).length;
+      const bits = [];
+      if (c('action_completed')) bits.push(`completed ${c('action_completed')} action${c('action_completed')===1?'':'s'}`);
+      if (c('learning_added')) bits.push(`added ${c('learning_added')} learning${c('learning_added')===1?'':'s'}`);
+      if (c('bright_spot_added')) bits.push(`noticed ${c('bright_spot_added')} bright spot${c('bright_spot_added')===1?'':'s'}`);
+      if (c('goal_added')) bits.push(`set ${c('goal_added')} new goal${c('goal_added')===1?'':'s'}`);
+      if (bits.length) lines.push(`Since last sharing, ${bits.join(', ')}.`);
+      const targets = events.filter(e=>e.type==='goal_target');
+      if (targets.length) targets.forEach(e => lines.push(`Hit target: ${e.text.replace('Hit your target of ','')}.`));
+      lines.push('');
+    }
+  }
+
   const goals = GOALS.filter(g => g.shareWithPartner !== false);
   lines.push('GOALS');
   if (!goals.length) lines.push('None shared.');
@@ -4000,6 +4202,23 @@ function buildShareProgressText(sinceLastShare) {
     const v = VALUES.find(x=>x.id===b.valueId);
     lines.push(`  - ${b.description} (${fmtDate(b.date)})${v?` — ${v.label}`:''}`);
   });
+
+  // Trends noticed — opt-in only, per value (Manage Values) or WSC dimension (the
+  // Will/Skill/Connectivity page). Direction only, never the actual score.
+  const trendLines = [];
+  VALUES.filter(v=>v.shareTrend).forEach(v => {
+    const t = valueTrend(v.id);
+    if (t) trendLines.push(`  - ${v.label} (value) has been ${t} lately`);
+  });
+  [['will','Will'],['skill','Skill'],['connectivity','Connectivity']].forEach(([key,label]) => {
+    if (wsGet(SK['shareTrend'+label])) {
+      const t = dimTrend(key);
+      if (t) trendLines.push(`  - ${label} has been ${t} lately`);
+    }
+  });
+  if (trendLines.length) {
+    lines.push('', '📈 TRENDS NOTICED', ...trendLines);
+  }
 
   return lines.join('\n');
 }
@@ -4119,7 +4338,7 @@ function buildBackupData() {
     valueScores:load(SK.valueScores), goalCheckins:load(SK.goalCheckins),
     willSessions:load(SK.willSessions), skillSessions:load(SK.skillSessions), connectivitySessions:load(SK.connectivitySessions),
     skillCheckins:load(SK.skillCheckins), relevanceScores:load(SK.relevanceScores), tactics:load(SK.tactics),
-    actions:load(SK.actions), learnings:load(SK.learnings), themes:load(SK.themes), brightSpots:load(SK.brightSpots), displayName:getDisplayName(), lastSharedDate:getLastSharedDate(),
+    actions:load(SK.actions), learnings:load(SK.learnings), themes:load(SK.themes), brightSpots:load(SK.brightSpots), displayName:getDisplayName(), lastSharedDate:getLastSharedDate(), goalsGroupCadence:getGoalsGroupCadence(), shareTrendWill:wsGet(SK.shareTrendWill)||'', shareTrendSkill:wsGet(SK.shareTrendSkill)||'', shareTrendConnectivity:wsGet(SK.shareTrendConnectivity)||'',
     scratchpad:load(SK.scratchpad), scratchpadCategories:SCRATCHPAD_CATEGORIES,
   };
 }
@@ -4203,6 +4422,10 @@ function applyRestoreData(data) {
   if (data.scratchpadCategories) { SCRATCHPAD_CATEGORIES = data.scratchpadCategories; saveScratchpadCategories(); }
   if (data.displayName!=null) setDisplayName(data.displayName);
   if (data.lastSharedDate!=null) setLastSharedDate(data.lastSharedDate);
+  if (data.goalsGroupCadence!=null) setGoalsGroupCadence(data.goalsGroupCadence);
+  if (data.shareTrendWill!=null) wsSet(SK.shareTrendWill, data.shareTrendWill);
+  if (data.shareTrendSkill!=null) wsSet(SK.shareTrendSkill, data.shareTrendSkill);
+  if (data.shareTrendConnectivity!=null) wsSet(SK.shareTrendConnectivity, data.shareTrendConnectivity);
 }
 function importJSON(input) {
   const file = input.files[0]; if (!file) return;
@@ -4264,7 +4487,7 @@ function snapshotWorkspaceData(wsId) {
     valueScores: load(SK.valueScores), goalCheckins: load(SK.goalCheckins),
     willSessions: load(SK.willSessions), skillSessions: load(SK.skillSessions), connectivitySessions: load(SK.connectivitySessions),
     skillCheckins: load(SK.skillCheckins), relevanceScores: load(SK.relevanceScores), tactics: load(SK.tactics),
-    actions: load(SK.actions), learnings: load(SK.learnings), themes: load(SK.themes), brightSpots: load(SK.brightSpots), displayName: wsGet(SK.displayName) || '', lastSharedDate: wsGet(SK.lastSharedDate) || '',
+    actions: load(SK.actions), learnings: load(SK.learnings), themes: load(SK.themes), brightSpots: load(SK.brightSpots), displayName: wsGet(SK.displayName) || '', lastSharedDate: wsGet(SK.lastSharedDate) || '', goalsGroupCadence: wsGet(SK.goalsGroupCadence) || '', shareTrendWill: wsGet(SK.shareTrendWill) || '', shareTrendSkill: wsGet(SK.shareTrendSkill) || '', shareTrendConnectivity: wsGet(SK.shareTrendConnectivity) || '',
     scratchpad: load(SK.scratchpad), scratchpadCategories,
   };
   ACTIVE_WORKSPACE = prev;
@@ -4296,6 +4519,10 @@ function restoreWorkspaceData(wsId, data) {
   if (data.scratchpadCategories) save(SK.scratchpadCategories, data.scratchpadCategories);
   if (data.displayName!=null) wsSet(SK.displayName, data.displayName);
   if (data.lastSharedDate!=null) wsSet(SK.lastSharedDate, data.lastSharedDate);
+  if (data.goalsGroupCadence!=null) wsSet(SK.goalsGroupCadence, data.goalsGroupCadence);
+  if (data.shareTrendWill!=null) wsSet(SK.shareTrendWill, data.shareTrendWill);
+  if (data.shareTrendSkill!=null) wsSet(SK.shareTrendSkill, data.shareTrendSkill);
+  if (data.shareTrendConnectivity!=null) wsSet(SK.shareTrendConnectivity, data.shareTrendConnectivity);
   wsSet('bb_seeded','1'); // don't let demo seeding overwrite restored data next time this workspace loads
   ACTIVE_WORKSPACE = prev;
 }
