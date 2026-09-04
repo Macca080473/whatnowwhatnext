@@ -1122,6 +1122,7 @@ function renderHome() {
 // ═══════════════════════════════════════════════════════════════
 function renderInstructions() {
   document.getElementById('instructions').innerHTML = `
+    <button class="back-link" style="display:block;margin-bottom:.75rem" onclick="showView('home')">← Back to Home</button>
     <div class="section-head">
       <div><div class="eyebrow">Orientation</div><div class="section-title">Instructions</div>
         <div class="section-sub">What this is, and how to use it</div></div>
@@ -1764,6 +1765,22 @@ function traitHasNoteHistory(traitId) {
 }
 
 function renderTraits() {
+  // One-time migration (Sept 2026): Personality profile notes moved to a two-field
+  // structure — brief notes (short, always visible) and in-depth notes (collapsed,
+  // for longer pasted write-ups). Existing content becomes in-depth notes, since that's
+  // where it was actually being used as; brief notes starts empty for the user to fill
+  // in themselves. Guarded by notesDetail being strictly undefined, so this never re-runs
+  // once a trait has been touched under the new structure (even if left blank).
+  let migratedAny = false;
+  TRAITS.forEach(t => {
+    if (t.category === 'personality' && t.notesDetail === undefined) {
+      t.notesDetail = t.notes || '';
+      t.notes = '';
+      migratedAny = true;
+    }
+  });
+  if (migratedAny) saveTraits();
+
   let html = `
     <div class="section-head">
       <div><div class="eyebrow">Self-view</div><div class="section-title">Qualities & Styles</div>
@@ -1804,12 +1821,13 @@ function renderTraits() {
             </div>
           </div>`;
         }
-        return `<div class="manage-row">
+        return `<div class="manage-row" style="flex-wrap:wrap">
           <span class="manage-row-title">${escapeHtml(t.label)}${t.notes?` <span class="manage-row-meta">— ${escapeHtml(t.notes)}</span>`:''}</span>
           ${traitExtraMetaHtml(t, cat)}
           <span class="tag ${t.importance==='very'?'flag-very':t.importance==='important'?'flag-important':''}" style="cursor:pointer" onclick="cycleTraitImportance('${t.id}')">
             ${t.importance==='very'?'Very important':t.importance==='important'?'Important':'Tap to flag'}
           </span>
+          ${t.notesDetail?`<details style="flex-basis:100%;margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Show more</summary><div style="font-size:13px;color:var(--text2);margin-top:.4rem;white-space:pre-wrap">${escapeHtml(t.notesDetail)}</div></details>`:''}
           <button class="btn btn-secondary btn-sm" onclick="openEditTrait('${t.id}')">Edit</button>
           ${traitHasNoteHistory(t.id)?`<button class="btn btn-secondary btn-sm" onclick="openTraitNoteHistory('${t.id}','${escapeHtml(t.label).replace(/'/g,"\'")}')">History</button>`:''}
           ${cat.fixed ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteTrait('${t.id}')">✕</button>`}
@@ -1900,7 +1918,8 @@ function openAddTrait(categoryId) {
     </div>`;
   openModal(`Add — ${cat.label}`, body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-     <button class="btn btn-primary" onclick="saveTrait('${categoryId}')">Save</button>`);
+     <button class="btn btn-secondary" onclick="saveTraitAddAnother('${categoryId}', event)">Save & add another</button>
+     <button class="btn btn-primary" onclick="saveTrait('${categoryId}')">Save & done</button>`);
 }
 function openEditTrait(id) {
   const t = TRAITS.find(x=>x.id===id); if (!t) return;
@@ -1908,26 +1927,33 @@ function openEditTrait(id) {
   const body = `
     <div class="field-group"><label class="field-label">${cat.label}</label><input type="text" id="mgTraitLabel" value="${escapeHtml(t.label)}" ${cat.fixed?'readonly':''}></div>
     ${traitExtraFieldsHtml(cat, t)}
-    <div class="field-group"><label class="field-label">Notes</label><input type="text" id="mgTraitNotes" value="${escapeHtml(t.notes||'')}">
+    <div class="field-group"><label class="field-label">Brief notes</label><input type="text" id="mgTraitNotes" value="${escapeHtml(t.notes||'')}">
       ${traitActionCheckboxHtml()}
-    </div>`;
+    </div>
+    ${cat.id==='personality' ? `
+    <div class="field-group"><label class="field-label">In-depth notes <span style="font-weight:400;color:var(--text3)">(optional — the fuller write-up)</span></label>
+      <textarea id="mgTraitNotesDetail" style="min-height:140px">${escapeHtml(t.notesDetail||'')}</textarea>
+    </div>` : ''}`;
   openModal(`Edit — ${cat.label}`, body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
      <button class="btn btn-primary" onclick="saveTrait('${t.category}','${id}')">Save</button>`);
 }
-function saveTrait(categoryId, id) {
+function applyTraitFromForm(categoryId, id) {
   const cat = TRAIT_CATEGORIES.find(c=>c.id===categoryId);
-  if (cat.fixed && !id) { alert('This category has a fixed set of entries — edit one of the existing five instead of adding a new one.'); return; }
+  if (cat.fixed && !id) { alert('This category has a fixed set of entries — edit one of the existing five instead of adding a new one.'); return null; }
   const label = document.getElementById('mgTraitLabel').value.trim();
-  if (!label) { alert('Please enter something.'); return; }
+  if (!label) { alert('Please enter something.'); return null; }
   const notes = document.getElementById('mgTraitNotes').value.trim();
+  const notesDetailEl = document.getElementById('mgTraitNotesDetail');
   const extra = readTraitExtraFields(cat);
   let traitId = id;
   if (!id) {
     traitId = 'tr_'+uid();
     TRAITS.push(Object.assign({ id:traitId, category:categoryId, label, notes, importance:null }, extra));
   } else {
-    Object.assign(TRAITS.find(x=>x.id===id), { label, notes }, extra);
+    const updates = Object.assign({ label, notes }, extra);
+    if (notesDetailEl) updates.notesDetail = notesDetailEl.value.trim();
+    Object.assign(TRAITS.find(x=>x.id===id), updates);
   }
   saveTraits();
   if (notes) {
@@ -1940,7 +1966,24 @@ function saveTrait(categoryId, id) {
       save(SK.actions, actions);
     }
   }
+  return traitId;
+}
+function saveTrait(categoryId, id) {
+  if (!applyTraitFromForm(categoryId, id)) return;
   closeModal(); renderView(currentView);
+}
+function saveTraitAddAnother(categoryId, evt) {
+  if (!applyTraitFromForm(categoryId, null)) return;
+  // Clear the form and keep the modal open, so adding several in a row (e.g. Saboteurs)
+  // doesn't mean closing, scrolling back to find the section, and reopening each time.
+  const labelEl = document.getElementById('mgTraitLabel');
+  const notesEl = document.getElementById('mgTraitNotes');
+  if (labelEl) { labelEl.value = ''; labelEl.focus(); }
+  if (notesEl) notesEl.value = '';
+  const actionCb = document.getElementById('mgTraitNoteAsAction');
+  if (actionCb) actionCb.checked = false;
+  const btn = evt && evt.target;
+  if (btn) { const old = btn.textContent; btn.textContent = '✓ Added'; setTimeout(()=>{ btn.textContent = old; }, 1200); }
 }
 function openTraitNoteHistory(traitId, label) {
   const safeLabel = escapeHtml(label).replace(/'/g,"\'");
@@ -3026,6 +3069,7 @@ function saveSkillCheckin(skillId) {
 // ═══════════════════════════════════════════════════════════════
 function renderRelevance() {
   let html = `
+    <button class="back-link" style="display:block;margin-bottom:.75rem" onclick="showView('goals')">← Back to Goals</button>
     <div class="section-head">
       <div><div class="eyebrow">Alignment</div><div class="section-title">Goal Relevance</div>
         <div class="guide-q">"Do my goals feel meaningful and make me feel good about myself?"</div></div>
@@ -3147,11 +3191,12 @@ function openEditTactic(goalId, tacticId) {
       </div>`).join('')}`;
   openModal(isNew?'Add Tactic':'Edit Tactic', body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-     <button class="btn btn-primary" onclick="saveTactic('${goalId}','${tacticId||''}')">Save</button>`);
+     ${isNew?`<button class="btn btn-secondary" onclick="saveTacticAddAnother('${goalId}', event)">Save & add another</button>`:''}
+     <button class="btn btn-primary" onclick="saveTactic('${goalId}','${tacticId||''}')">Save${isNew?' & done':''}</button>`);
 }
-function saveTactic(goalId, tacticId) {
+function applyTacticFromForm(goalId, tacticId) {
   const title = document.getElementById('mgTcTitle').value.trim();
-  if (!title) { alert('Please enter a tactic.'); return; }
+  if (!title) return false;
   const criteria = RELEVANCE_CRITERIA.filter(r=>r.goalId===goalId);
   const scores = {};
   criteria.forEach(c => { scores[c.id] = parseFloat(document.getElementById('mgTc_'+c.id).value); });
@@ -3159,7 +3204,24 @@ function saveTactic(goalId, tacticId) {
   if (!tacticId) list.push({ id:uid(), goalId, title, scores, date:today() });
   else Object.assign(list.find(x=>x.id===tacticId), { title, scores });
   save(SK.tactics, list);
+  return true;
+}
+function saveTactic(goalId, tacticId) {
+  if (!applyTacticFromForm(goalId, tacticId)) { alert('Please enter a tactic.'); return; }
   closeModal(); renderView(currentView);
+}
+function saveTacticAddAnother(goalId, evt) {
+  if (!applyTacticFromForm(goalId, null)) { alert('Please enter a tactic.'); return; }
+  const titleEl = document.getElementById('mgTcTitle');
+  titleEl.value = ''; titleEl.focus();
+  RELEVANCE_CRITERIA.filter(r=>r.goalId===goalId).forEach(c => {
+    const slider = document.getElementById('mgTc_'+c.id);
+    const valSpan = document.getElementById('mgTc_'+c.id+'_val');
+    if (slider) slider.value = 5;
+    if (valSpan) valSpan.textContent = '5';
+  });
+  const btn = evt && evt.target;
+  if (btn) { const old = btn.textContent; btn.textContent = '✓ Added'; setTimeout(()=>{ btn.textContent = old; }, 1200); }
 }
 function deleteTactic(id) {
   if (!confirm('Delete this tactic?')) return;
@@ -3571,11 +3633,12 @@ function openAddAction() {
     <div class="field-group"><label class="field-label">Notes</label><textarea id="acNotes" placeholder="Optional"></textarea></div>`;
   openModal('Add Action', body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-     <button class="btn btn-primary" onclick="saveNewAction()">Add</button>`);
+     <button class="btn btn-secondary" onclick="saveNewActionAddAnother(event)">Save & add another</button>
+     <button class="btn btn-primary" onclick="saveNewAction()">Save & done</button>`);
 }
-function saveNewAction() {
+function applyNewActionFromForm() {
   const description = document.getElementById('acDesc').value.trim();
-  if (!description) { alert('Please describe the step.'); return; }
+  if (!description) { alert('Please describe the step.'); return false; }
   const actions = load(SK.actions);
   actions.push({
     id:uid(), createdDate:today(), description,
@@ -3586,7 +3649,21 @@ function saveNewAction() {
     completed:false, completedDate:null,
   });
   save(SK.actions, actions);
+  return true;
+}
+function saveNewAction() {
+  if (!applyNewActionFromForm()) return;
   closeModal(); renderActions(); updateActionBadge();
+}
+function saveNewActionAddAnother(evt) {
+  if (!applyNewActionFromForm()) return;
+  updateActionBadge();
+  document.getElementById('acDesc').value = '';
+  document.getElementById('acDue').value = '';
+  document.getElementById('acNotes').value = '';
+  document.getElementById('acDesc').focus();
+  const btn = evt && evt.target;
+  if (btn) { const old = btn.textContent; btn.textContent = '✓ Added'; setTimeout(()=>{ btn.textContent = old; }, 1200); }
 }
 function openEditAction(id) {
   const a = load(SK.actions).find(x=>x.id===id); if (!a) return;
@@ -3659,17 +3736,29 @@ function openAddLearning(actionId) {
     </div>`;
   openModal('Add a Learning', body,
     `<button class="btn btn-secondary" onclick="closeModal(); ${actionId?'renderActions()':'renderLearnings()'}">${a?'Skip':'Cancel'}</button>
-     <button class="btn btn-primary" onclick="saveLearning('${actionId||''}')">Save learning</button>`);
+     ${actionId?'':`<button class="btn btn-secondary" onclick="saveLearningAddAnother(event)">Save & add another</button>`}
+     <button class="btn btn-primary" onclick="saveLearning('${actionId||''}')">Save${actionId?' learning':' & done'}</button>`);
 }
-function saveLearning(actionId) {
+function applyLearningFromForm(actionId) {
   const description = document.getElementById('lnDesc').value.trim();
-  if (!description) { closeModal(); if (actionId) renderActions(); else renderLearnings(); return; }
+  if (!description) return false;
   const learnings = load(SK.learnings);
   learnings.push({ id:uid(), date:document.getElementById('lnDate').value||today(), description, category:document.getElementById('lnCat').value,
     goalId:document.getElementById('lnGoal').value || null,
     priority:document.getElementById('lnPriority').value, actionId: actionId || null, themeIds:[] });
   save(SK.learnings, learnings);
+  return true;
+}
+function saveLearning(actionId) {
+  if (!applyLearningFromForm(actionId)) { closeModal(); if (actionId) renderActions(); else renderLearnings(); return; }
   closeModal(); if (actionId) renderActions(); else renderLearnings();
+}
+function saveLearningAddAnother(evt) {
+  if (!applyLearningFromForm(null)) { alert('Add a description first.'); return; }
+  document.getElementById('lnDesc').value = '';
+  document.getElementById('lnDesc').focus();
+  const btn = evt && evt.target;
+  if (btn) { const old = btn.textContent; btn.textContent = '✓ Added'; setTimeout(()=>{ btn.textContent = old; }, 1200); }
 }
 function openEditLearning(id) {
   const l = load(SK.learnings).find(x=>x.id===id);
@@ -3744,11 +3833,12 @@ function openAddBrightSpot(valueId) {
     </div>`;
   openModal('Add a Bright Spot', body,
     `<button class="btn btn-secondary" onclick="closeModal(); renderValues()">Cancel</button>
-     <button class="btn btn-primary" onclick="saveBrightSpot()">Save</button>`);
+     <button class="btn btn-secondary" onclick="saveBrightSpotAddAnother(event)">Save & add another</button>
+     <button class="btn btn-primary" onclick="saveBrightSpot()">Save & done</button>`);
 }
-function saveBrightSpot() {
+function applyBrightSpotFromForm() {
   const description = document.getElementById('bsDesc').value.trim();
-  if (!description) { closeModal(); renderValues(); return; }
+  if (!description) return false;
   const spots = load(SK.brightSpots);
   spots.push({
     id:uid(), date:document.getElementById('bsDate').value||today(), description,
@@ -3756,7 +3846,18 @@ function saveBrightSpot() {
     goalId:document.getElementById('bsGoal').value||null,
   });
   save(SK.brightSpots, spots);
+  return true;
+}
+function saveBrightSpot() {
+  applyBrightSpotFromForm();
   closeModal(); renderValues();
+}
+function saveBrightSpotAddAnother(evt) {
+  if (!applyBrightSpotFromForm()) { alert('Add a description first.'); return; }
+  document.getElementById('bsDesc').value = '';
+  document.getElementById('bsDesc').focus();
+  const btn = evt && evt.target;
+  if (btn) { const old = btn.textContent; btn.textContent = '✓ Added'; setTimeout(()=>{ btn.textContent = old; }, 1200); }
 }
 function openEditBrightSpot(id) {
   const b = load(SK.brightSpots).find(x=>x.id===id); if (!b) return;
