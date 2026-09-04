@@ -506,6 +506,76 @@ const VALUE_SUGGESTIONS = {
     { category:'Connection', values:['Loyal','Connecting','Inclusive','Collaborative','Diplomatic','Forgiving','Communicative','Welcoming','Cooperative','Team-oriented'] },
   ],
 };
+// Reference content for the 9 Saboteur "styles" (Judge is the universal root Saboteur in
+// the Positive Intelligence model and isn't one of these nine — deliberately left unmatched
+// rather than guessed at). Source: Positive Intelligence, "Saboteurs and their Sage
+// Underlying Strengths" (2023). Keys must match TRAIT_CATEGORIES' saboteurs suggestions exactly.
+// Reference descriptions for the 24 VIA Character Strengths. Source: VIA Institute on
+// Character strengths profile descriptions. Keys must match VIA_CHARACTER_STRENGTHS exactly.
+const VIA_STRENGTH_DESCRIPTIONS = {
+  'Honesty': "Speaking the truth but more broadly presenting oneself in a genuine way and acting in a sincere way; being without pretense; taking responsibility for one's feelings and actions.",
+  'Kindness': "Doing favors and good deeds for others; helping them; taking care of them.",
+  'Humor': "Liking to laugh and tease; bringing smiles to other people; seeing the light side; making (not necessarily telling) jokes.",
+  'Spirituality': "Having coherent beliefs about the higher purpose and meaning of the universe; knowing where one fits within the larger scheme; having beliefs about the meaning of life that shape conduct and provide comfort.",
+  'Self-Regulation': "Regulating what one feels and does; being disciplined; controlling one's impulses and emotions.",
+  'Leadership': "Encouraging a group of which one is a member to get things done and at the same time maintain good relations within the group; organizing group activities and seeing that they happen.",
+  'Prudence': "Being careful about one's choices; not taking undue risks; not saying or doing things that might later be regretted.",
+  'Perseverance': 'Finishing what one starts; persevering in a course of action in spite of obstacles; "getting it out the door"; taking pleasure in completing tasks.',
+  'Judgment': "Thinking things through and examining them from all sides; not jumping to conclusions; being able to change one's mind in light of evidence; weighing all evidence fairly.",
+  'Love': "Valuing close relations with others, in particular those in which sharing & caring are reciprocated; being close to people.",
+  'Fairness': "Treating all people the same according to notions of fairness and justice; not letting feelings bias decisions about others; giving everyone a fair chance.",
+  'Forgiveness': "Forgiving those who have done wrong; accepting others' shortcomings; giving people a second chance; not being vengeful.",
+  'Bravery': "Not shrinking from threat, challenge, difficulty, or pain; speaking up for what's right even if there's opposition; acting on convictions even if unpopular; includes physical bravery but is not limited to it.",
+  'Perspective': "Being able to provide wise counsel to others; having ways of looking at the world that make sense to oneself/others.",
+  'Social Intelligence': "Being aware of the motives/feelings of others and oneself; knowing what to do to fit into different social situations; knowing what makes other people tick.",
+  'Teamwork': "Working well as a member of a group or team; being loyal to the group; doing one's share.",
+  'Love of Learning': "Mastering new skills, topics, and bodies of knowledge, whether on one's own or formally; related to the strength of curiosity but goes beyond it to describe the tendency to add systematically to what one knows.",
+  'Gratitude': "Being aware of and thankful for the good things that happen; taking time to express thanks.",
+  'Hope': "Expecting the best in the future and working to achieve it; believing that a good future is something that can be brought about.",
+  'Curiosity': "Taking an interest in ongoing experience for its own sake; finding subjects and topics fascinating; exploring and discovering.",
+  'Humility': "Letting one's accomplishments speak for themselves; not regarding oneself as more special than one is.",
+  'Creativity': "Thinking of novel and productive ways to conceptualize and do things; includes artistic achievement but is not limited to it.",
+  'Zest': "Approaching life with excitement and energy; not doing things halfway or halfheartedly; living life as an adventure; feeling alive and activated.",
+  'Appreciation of Beauty & Excellence': "Noticing and appreciating beauty, excellence, and/or skilled performance in various domains of life, from nature to art to mathematics to science to everyday experience.",
+};
+const SABOTEUR_REFERENCE = {
+  'Avoider': {
+    strength: 'Easy-going, even keeled temperament. Flexible and adaptable.',
+    abuse: 'Avoid difficult or unpleasant tasks and conflicts. Procrastinate.',
+  },
+  'Controller': {
+    strength: 'Confident, action-oriented, decisive, willful, persistent.',
+    abuse: 'Need to confront and dominate. Can be confrontational and not open to influence.',
+  },
+  'Hyper-Achiever': {
+    strength: 'Driven, pragmatic, goal-oriented, self-directed.',
+    abuse: 'Narrow focus on achievement to the detriment of relationships, balance, and perspective.',
+  },
+  'Hyper-Rational': {
+    strength: 'Capable of deep insight and understanding through objective analysis.',
+    abuse: 'Excessive reliance on the rational function in dealing with people and emotions. Hurt relationships by not being empathetic or considering emotions.',
+  },
+  'Hyper-Vigilant': {
+    strength: 'Being vigilant. Sensitive and aware of true risks and dangers to self, others, and institutions.',
+    abuse: 'Too anxious and always expecting the worst. Worried about too many things rather than focused on the few that truly matter.',
+  },
+  'Pleaser': {
+    strength: 'Empathetic. Loving and giving.',
+    abuse: 'Constantly helping, pleasing, or rescuing others, hoping to be liked. Loses sight of own needs and becomes resentful as a result.',
+  },
+  'Stickler': {
+    strength: 'High standards and detail-oriented. Able to bring organization and order into ambiguity and chaos.',
+    abuse: 'Perfectionism applied to too many things, causing anxiety and discouragement. Too self-critical and often disappointed with others.',
+  },
+  'Restless': {
+    strength: 'High energy and vitality. Open, curious, spontaneous.',
+    abuse: 'Constant need for busyness, rarely at peace with current activity. Spread too thin, follow-through suffers.',
+  },
+  'Victim': {
+    strength: 'Sensitive: feel own emotions deeply and clearly, including "difficult" emotions. Introspective: capable of deep and courageous introspection and self-discovery.',
+    abuse: 'Continuous focus on painful and deflating emotions. Temperamental as a way to gain attention and affection.',
+  },
+};
 const TRAIT_CATEGORIES = [
   { id:'strengths', label:'Strengths', suggestions:VIA_CHARACTER_STRENGTHS, extra:'priority',
     linkName:'VIA Character Strengths Survey', linkUrl:'https://www.viacharacter.org/survey/account/Register' },
@@ -1779,6 +1849,25 @@ function renderTraits() {
       migratedAny = true;
     }
   });
+  // One-time backfill: Saboteurs already added (before this feature existed) get their
+  // Sage strength / Saboteur abuse auto-filled retroactively, same as a freshly-added one
+  // would from here on. Guarded by sageStrength being strictly undefined, and only applies
+  // to the standard nine — a custom-labelled Saboteur entry has nothing to match against.
+  TRAITS.forEach(t => {
+    if (t.category === 'saboteurs' && t.sageStrength === undefined && SABOTEUR_REFERENCE[t.label]) {
+      t.sageStrength = SABOTEUR_REFERENCE[t.label].strength;
+      t.saboteurAbuse = SABOTEUR_REFERENCE[t.label].abuse;
+      migratedAny = true;
+    }
+  });
+  // Same backfill for Strengths already added — description auto-fills retroactively
+  // for the standard 24, same guard pattern (undefined check, no overwrite of existing content).
+  TRAITS.forEach(t => {
+    if (t.category === 'strengths' && t.viaDescription === undefined && VIA_STRENGTH_DESCRIPTIONS[t.label]) {
+      t.viaDescription = VIA_STRENGTH_DESCRIPTIONS[t.label];
+      migratedAny = true;
+    }
+  });
   if (migratedAny) saveTraits();
 
   let html = `
@@ -1828,6 +1917,8 @@ function renderTraits() {
             ${t.importance==='very'?'Very important':t.importance==='important'?'Important':'Tap to flag'}
           </span>
           ${t.notesDetail?`<details style="flex-basis:100%;margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Show more</summary><div style="font-size:13px;color:var(--text2);margin-top:.4rem;white-space:pre-wrap">${escapeHtml(t.notesDetail)}</div></details>`:''}
+          ${(t.sageStrength||t.saboteurAbuse)?`<details style="flex-basis:100%;margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Show sage strength & saboteur abuse</summary><div style="font-size:13px;color:var(--text2);margin-top:.4rem">${t.sageStrength?`<p style="margin-bottom:.5rem"><strong>Sage underlying strength:</strong> ${escapeHtml(t.sageStrength)}</p>`:''}${t.saboteurAbuse?`<p><strong>Saboteur abuse:</strong> ${escapeHtml(t.saboteurAbuse)}</p>`:''}</div></details>`:''}
+          ${t.viaDescription?`<details style="flex-basis:100%;margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Show description</summary><div style="font-size:13px;color:var(--text2);margin-top:.4rem">${escapeHtml(t.viaDescription)}</div></details>`:''}
           <button class="btn btn-secondary btn-sm" onclick="openEditTrait('${t.id}')">Edit</button>
           ${traitHasNoteHistory(t.id)?`<button class="btn btn-secondary btn-sm" onclick="openTraitNoteHistory('${t.id}','${escapeHtml(t.label).replace(/'/g,"\'")}')">History</button>`:''}
           ${cat.fixed ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteTrait('${t.id}')">✕</button>`}
@@ -1904,18 +1995,43 @@ function traitActionCheckboxHtml() {
   </label>`;
 }
 
+function fillTraitSuggestion(categoryId, value) {
+  const labelEl = document.getElementById('mgTraitLabel');
+  if (labelEl) labelEl.value = value;
+  if (categoryId === 'saboteurs' && SABOTEUR_REFERENCE[value]) {
+    const strEl = document.getElementById('mgTraitStrength');
+    const abEl = document.getElementById('mgTraitAbuse');
+    if (strEl && !strEl.value.trim()) strEl.value = SABOTEUR_REFERENCE[value].strength;
+    if (abEl && !abEl.value.trim()) abEl.value = SABOTEUR_REFERENCE[value].abuse;
+  }
+  if (categoryId === 'strengths' && VIA_STRENGTH_DESCRIPTIONS[value]) {
+    const descEl = document.getElementById('mgTraitDescription');
+    if (descEl && !descEl.value.trim()) descEl.value = VIA_STRENGTH_DESCRIPTIONS[value];
+  }
+}
 function openAddTrait(categoryId) {
   const cat = TRAIT_CATEGORIES.find(c=>c.id===categoryId);
   const body = `
     <div class="field-group"><label class="field-label">${cat.label}</label>
       <input type="text" id="mgTraitLabel" placeholder="Type your own, or tap a suggestion below">
-      ${cat.suggestions.length ? `<div class="chip-row">${cat.suggestions.map(s=>`<span class="chip suggest" onclick="document.getElementById('mgTraitLabel').value='${escapeHtml(s).replace(/'/g,"\'")}'">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
+      ${cat.suggestions.length ? `<div class="chip-row">${cat.suggestions.map(s=>`<span class="chip suggest" onclick="fillTraitSuggestion('${categoryId}','${escapeHtml(s).replace(/'/g,"\\'")}')">${escapeHtml(s)}</span>`).join('')}</div>` : ''}
     </div>
     ${traitExtraFieldsHtml(cat, null)}
     <div class="field-group"><label class="field-label">Notes <span style="font-weight:400;color:var(--text3)">(optional — how it shows up, source, evidence)</span></label>
       <input type="text" id="mgTraitNotes">
       ${traitActionCheckboxHtml()}
-    </div>`;
+    </div>
+    ${categoryId==='saboteurs' ? `
+    <div class="field-group"><label class="field-label">Sage underlying strength <span style="font-weight:400;color:var(--text3)">(fills in automatically for the standard nine)</span></label>
+      <textarea id="mgTraitStrength" style="min-height:70px"></textarea>
+    </div>
+    <div class="field-group"><label class="field-label">Saboteur abuse</label>
+      <textarea id="mgTraitAbuse" style="min-height:70px"></textarea>
+    </div>` : ''}
+    ${categoryId==='strengths' ? `
+    <div class="field-group"><label class="field-label">Description <span style="font-weight:400;color:var(--text3)">(fills in automatically for the standard 24)</span></label>
+      <textarea id="mgTraitDescription" style="min-height:90px"></textarea>
+    </div>` : ''}`;
   openModal(`Add — ${cat.label}`, body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
      <button class="btn btn-secondary" onclick="saveTraitAddAnother('${categoryId}', event)">Save & add another</button>
@@ -1933,6 +2049,17 @@ function openEditTrait(id) {
     ${cat.id==='personality' ? `
     <div class="field-group"><label class="field-label">In-depth notes <span style="font-weight:400;color:var(--text3)">(optional — the fuller write-up)</span></label>
       <textarea id="mgTraitNotesDetail" style="min-height:140px">${escapeHtml(t.notesDetail||'')}</textarea>
+    </div>` : ''}
+    ${cat.id==='saboteurs' ? `
+    <div class="field-group"><label class="field-label">Sage underlying strength <span style="font-weight:400;color:var(--text3)">(fills in automatically for the standard nine)</span></label>
+      <textarea id="mgTraitStrength" style="min-height:70px">${escapeHtml(t.sageStrength||'')}</textarea>
+    </div>
+    <div class="field-group"><label class="field-label">Saboteur abuse</label>
+      <textarea id="mgTraitAbuse" style="min-height:70px">${escapeHtml(t.saboteurAbuse||'')}</textarea>
+    </div>` : ''}
+    ${cat.id==='strengths' ? `
+    <div class="field-group"><label class="field-label">Description <span style="font-weight:400;color:var(--text3)">(fills in automatically for the standard 24)</span></label>
+      <textarea id="mgTraitDescription" style="min-height:90px">${escapeHtml(t.viaDescription||'')}</textarea>
     </div>` : ''}`;
   openModal(`Edit — ${cat.label}`, body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -1945,14 +2072,24 @@ function applyTraitFromForm(categoryId, id) {
   if (!label) { alert('Please enter something.'); return null; }
   const notes = document.getElementById('mgTraitNotes').value.trim();
   const notesDetailEl = document.getElementById('mgTraitNotesDetail');
+  const strengthEl = document.getElementById('mgTraitStrength');
+  const abuseEl = document.getElementById('mgTraitAbuse');
+  const descEl = document.getElementById('mgTraitDescription');
   const extra = readTraitExtraFields(cat);
   let traitId = id;
   if (!id) {
     traitId = 'tr_'+uid();
-    TRAITS.push(Object.assign({ id:traitId, category:categoryId, label, notes, importance:null }, extra));
+    const newTrait = Object.assign({ id:traitId, category:categoryId, label, notes, importance:null }, extra);
+    if (strengthEl) newTrait.sageStrength = strengthEl.value.trim();
+    if (abuseEl) newTrait.saboteurAbuse = abuseEl.value.trim();
+    if (descEl) newTrait.viaDescription = descEl.value.trim();
+    TRAITS.push(newTrait);
   } else {
     const updates = Object.assign({ label, notes }, extra);
     if (notesDetailEl) updates.notesDetail = notesDetailEl.value.trim();
+    if (strengthEl) updates.sageStrength = strengthEl.value.trim();
+    if (abuseEl) updates.saboteurAbuse = abuseEl.value.trim();
+    if (descEl) updates.viaDescription = descEl.value.trim();
     Object.assign(TRAITS.find(x=>x.id===id), updates);
   }
   saveTraits();
@@ -1980,6 +2117,12 @@ function saveTraitAddAnother(categoryId, evt) {
   const notesEl = document.getElementById('mgTraitNotes');
   if (labelEl) { labelEl.value = ''; labelEl.focus(); }
   if (notesEl) notesEl.value = '';
+  const strengthEl = document.getElementById('mgTraitStrength');
+  const abuseEl = document.getElementById('mgTraitAbuse');
+  if (strengthEl) strengthEl.value = '';
+  if (abuseEl) abuseEl.value = '';
+  const descEl = document.getElementById('mgTraitDescription');
+  if (descEl) descEl.value = '';
   const actionCb = document.getElementById('mgTraitNoteAsAction');
   if (actionCb) actionCb.checked = false;
   const btn = evt && evt.target;
