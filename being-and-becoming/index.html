@@ -202,6 +202,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg2);border:0.5px solid var(--border);
   border-radius:20px;padding:4px 10px;font-size:12px;color:var(--text2);cursor:pointer}
 .chip.suggest{background:var(--bg);border-style:dashed}
+.chip.selected{background:var(--accent);border-color:var(--accent);color:#fff}
 .score-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--border)}
 .score-row:last-child{border-bottom:none}
 .score-name{flex:1;font-size:13px}
@@ -598,12 +599,24 @@ const TRAIT_CATEGORIES = [
 
 const LEARNING_CATEGORIES = ['Goals','Will · Skill · Connectivity','Values','Qualities & Styles','Goal Relevance','Actions','General'];
 // Shared "which goal does this relate to" dropdown — optional, used by both Actions and Learnings
-function relatedGoalOptionsHtml(selectedId) {
+// A Learning can relate to a single specific goal, or to all goals at once — the latter
+// uses this reserved sentinel value rather than a real goal id. Anywhere a goal's title
+// would normally be looked up for display, use this helper instead of findGoal(...).title
+// directly, so "All goals" actually shows instead of silently coming up blank.
+const ALL_GOALS_SENTINEL = '__ALL_GOALS__';
+function goalTitleForDisplay(goalId) {
+  if (!goalId) return '';
+  if (goalId === ALL_GOALS_SENTINEL) return 'All goals';
+  return findGoal(goalId)?.title || '';
+}
+function relatedGoalOptionsHtml(selectedId, includeAllGoalsOption) {
   return `<option value="">— No specific goal —</option>` +
+    (includeAllGoalsOption ? `<option value="${ALL_GOALS_SENTINEL}" ${selectedId===ALL_GOALS_SENTINEL?'selected':''}>All goals</option>` : '') +
     GOALS.map(g => `<option value="${g.id}" ${selectedId===g.id?'selected':''}>${escapeHtml(g.title)}</option>`).join('');
 }
 function relatedGoalTagHtml(goalId) {
   if (!goalId) return '';
+  if (goalId === ALL_GOALS_SENTINEL) return `<span class="tag">All goals</span>`;
   const g = findGoal(goalId);
   return g ? `<span class="tag">${escapeHtml(g.title.length>28?g.title.slice(0,28)+'…':g.title)}</span>` : '';
 }
@@ -623,6 +636,7 @@ const SK = {
   actions:'bb_actions', learnings:'bb_learnings', themes:'bb_learning_themes', brightSpots:'bb_bright_spots',
   lastSharedDate:'bb_last_shared_date', cadenceBannerDismissed:'bb_cadence_banner_dismissed', goalsGroupCadence:'bb_goals_group_cadence',
   shareTrendWill:'bb_share_trend_will', shareTrendSkill:'bb_share_trend_skill', shareTrendConnectivity:'bb_share_trend_connectivity',
+  energisersDrainers:'bb_energisers_drainers',
   displayName:'bb_display_name',
 };
 
@@ -698,7 +712,7 @@ function deleteWorkspace(id) {
   else renderWorkspaceSwitcher();
 }
 function loadEverything() {
-  loadValues(); loadTraits(); loadBehavioural(); loadGoals(); loadSkills(); loadRelevanceCriteria(); loadHiddenTabs(); loadScratchpadCategories(); loadThemes();
+  loadValues(); loadTraits(); loadBehavioural(); loadGoals(); loadSkills(); loadRelevanceCriteria(); loadHiddenTabs(); loadScratchpadCategories(); loadThemes(); loadEnergisersDrainers();
   migratePersonalTraitsLabel();
   seedDemoData();
 }
@@ -858,6 +872,20 @@ function loadValues() {
   VALUES = [];
   saveValues();
 }
+// Energisers/Drainers — a self-contained list on Qualities & Styles, deliberately not
+// wired into Will/Skill/Connectivity structurally yet (open question which dimension(s)
+// it belongs to long-term). Ordered array like Values/Goals/Traits (reordered via ▲/▼,
+// not a stored priority number) — separate from the Low/Medium/High categorisation field,
+// which is a distinct thing per Iain's own clarification.
+const ENERGISER_DRAINER_PRIORITIES = ['Low','Medium','High'];
+let ENERGISERS_DRAINERS = [];
+function loadEnergisersDrainers() {
+  const stored = wsGet(SK.energisersDrainers);
+  if (stored) { try { ENERGISERS_DRAINERS = JSON.parse(stored); return; } catch(e) {} }
+  ENERGISERS_DRAINERS = [];
+  saveEnergisersDrainers();
+}
+function saveEnergisersDrainers() { wsSet(SK.energisersDrainers, JSON.stringify(ENERGISERS_DRAINERS)); }
 function saveValues() { save(SK.values, VALUES); }
 
 let TRAITS = []; // { id, category, label, notes, importance: 'very'|'important'|null }
@@ -1514,6 +1542,7 @@ function renderValues() {
           <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}${brightSpotsFor(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🌟 ${brightSpotsFor(v.id).length}</span>`:''}${goalsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🎯 ${goalsForValue(v.id).length}</span>`:''}</span>
           ${latest?`<span style="font-size:18px;font-weight:500;color:var(--accent)">${latest.value}</span>`:''}
         </div>
+        ${v.notes?`<div style="font-size:13px;color:var(--text2);margin-top:2px">${escapeHtml(v.notes)}</div>`:''}
         ${list.length>1?`<div class="chart-wrap-sm"><canvas id="valChart-${v.id}"></canvas></div>`:''}
         <div class="updated-row">${latest?`Last check-in: ${fmtDate(latest.date)} (${timeSince(latest.date)} ago)`:'No check-ins yet'}</div>
         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
@@ -1726,7 +1755,7 @@ function openManageValues() {
       <button class="btn btn-danger btn-sm" onclick="deleteValue('${v.id}')">✕</button>
     </div>`).join('') : '<div class="empty-state">No values yet.</div>';
   body += `<button class="btn-add-block" style="margin-top:.5rem" onclick="openEditValue(null)">+ Add value</button>`;
-  openModal('Manage Values', body, `<button class="btn btn-secondary" onclick="closeModal(); renderView(currentView)">Close</button>`);
+  openModal('Manage Values', body, `<button class="btn btn-secondary" onclick="closeModal(); renderValues()">Close</button>`);
 }
 function moveValue(id, direction) {
   const i = VALUES.findIndex(v=>v.id===id);
@@ -1753,6 +1782,9 @@ function openEditValue(id) {
         <option value="extrinsic" ${v?.type==='extrinsic'?'selected':''}>Other-directed</option>
       </select>
     </div>
+    <div class="field-group"><label class="field-label">Brief notes <span style="font-weight:400;color:var(--text3)">(optional — what this means to you)</span></label>
+      <input type="text" id="mgValNotes" value="${v?escapeHtml(v.notes||''):''}">
+    </div>
     <div class="field-group">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="mgValShareTrend" ${v?.shareTrend?'checked':''}>
@@ -1774,9 +1806,10 @@ function saveValue(id) {
   const label = document.getElementById('mgValLabel').value.trim();
   if (!label) { alert('Please enter a value.'); return; }
   const type = document.getElementById('mgValType').value;
+  const notes = document.getElementById('mgValNotes').value.trim();
   const shareTrend = document.getElementById('mgValShareTrend').checked;
-  if (!id) VALUES.push({ id:'v_'+uid(), label, type, shareTrend, createdDate: today() });
-  else Object.assign(VALUES.find(x=>x.id===id), { label, type, shareTrend });
+  if (!id) VALUES.push({ id:'v_'+uid(), label, type, notes, shareTrend, createdDate: today() });
+  else Object.assign(VALUES.find(x=>x.id===id), { label, type, notes, shareTrend });
   saveValues();
   openManageValues();
 }
@@ -1945,6 +1978,14 @@ function renderTraits() {
         <div style="font-size:13px;color:var(--text2)">${escapeHtml(f.value)}</div>
       </div>` : '').join('') : '<div class="empty-state" style="padding:1rem">Not recorded yet.</div>'}
     ${BEHAVIOURAL.updatedDate?`<div class="updated-row">Last updated: ${fmtDate(BEHAVIOURAL.updatedDate)} (${timeSince(BEHAVIOURAL.updatedDate)} ago)</div>`:''}
+  </div>`;
+
+  html += `
+  <div class="section-label" style="margin-top:1.25rem">⚡🔋 Energisers & Drainers</div>
+  <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Actions and activities that give you energy, or drain it — noticing the contrast, not grading either side. Not yet linked into Will, Skill & Connectivity structurally; it's still an open question which dimension(s) this belongs to long-term.</p>
+  <div class="two-col">
+    ${energiserDrainerColumnHtml('energiser', '⚡ Energisers')}
+    ${energiserDrainerColumnHtml('drainer', '🔋 Drainers')}
   </div>`;
 
   document.getElementById('traits').innerHTML = html;
@@ -2499,7 +2540,7 @@ function openManageGoals() {
       <button class="btn btn-danger btn-sm" onclick="deleteGoal('${g.id}')">✕</button>
     </div>`).join('') : '<div class="empty-state">No goals yet.</div>';
   body += `<button class="btn-add-block" style="margin-top:.5rem" onclick="openEditGoal(null)">+ Add goal</button>`;
-  openModal('Manage Goals', body, `<button class="btn btn-secondary" onclick="closeModal(); renderView(currentView)">Close</button>`);
+  openModal('Manage Goals', body, `<button class="btn btn-secondary" onclick="closeModal(); renderGoals()">Close</button>`);
 }
 function moveGoal(id, direction) {
   const i = GOALS.findIndex(g=>g.id===id);
@@ -3135,7 +3176,7 @@ function openManageSkills() {
             </div>`).join('')}
         </div>
       </div>`).join('')}`;
-  openModal('Manage Skills', body, `<button class="btn btn-secondary" onclick="closeModal(); renderView(currentView)">Close</button>`);
+  openModal('Manage Skills', body, `<button class="btn btn-secondary" onclick="closeModal(); renderWSC()">Close</button>`);
 }
 function moveSkill(id, direction) {
   const i = SKILLS.findIndex(sk=>sk.id===id);
@@ -3294,7 +3335,7 @@ function openManageRelevanceCriteria() {
       </div>`).join('') : '<div style="font-size:12px;color:var(--text3);margin-bottom:.5rem">No criteria yet.</div>';
     body += `<button class="btn-add-block" onclick="openEditCriterion(null,'${g.id}')">+ Add criterion</button>`;
   });
-  openModal('Manage Relevance Criteria', body, `<button class="btn btn-secondary" onclick="closeModal(); renderView(currentView)">Close</button>`);
+  openModal('Manage Relevance Criteria', body, `<button class="btn btn-secondary" onclick="closeModal(); renderRelevance()">Close</button>`);
 }
 function openEditCriterion(critId, presetGoalId) {
   const isNew = !critId;
@@ -3753,8 +3794,9 @@ function renderLearnings() {
           ${themeLabelsFor(l).map(label=>`<span style="color:var(--accent)">${escapeHtml(label)}</span>`).join('')}
           ${relatedGoalTagHtml(l.goalId)}
         </div>
-        <div class="action-btns" style="margin-top:6px">
+        <div class="action-btns" style="margin-top:6px;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm" onclick="openEditLearning('${l.id}')">Edit</button>
+          <button class="btn btn-secondary btn-sm" onclick="openConvertLearningChoice('${l.id}')">⚡🔋 Convert…</button>
           <button class="btn btn-danger btn-sm" onclick="deleteLearning('${l.id}')">✕</button>
         </div>
       </div>`).join('');
@@ -3872,7 +3914,7 @@ function openAddLearning(actionId) {
       <select id="lnCat">${LEARNING_CATEGORIES.map(c=>`<option value="${c}" ${a&&a.context===c?'selected':''}>${c}</option>`).join('')}</select>
     </div>
     <div class="field-group"><label class="field-label">Related goal <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
-      <select id="lnGoal">${relatedGoalOptionsHtml(a?a.goalId||'':'')}</select>
+      <select id="lnGoal">${relatedGoalOptionsHtml(a?a.goalId||'':'', true)}</select>
     </div>
     <div class="field-group"><label class="field-label">Priority</label>
       <select id="lnPriority">${LEARNING_PRIORITIES.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
@@ -3913,7 +3955,7 @@ function openEditLearning(id) {
       <select id="lnEditCat">${LEARNING_CATEGORIES.map(c=>`<option value="${c}" ${l.category===c?'selected':''}>${c}</option>`).join('')}</select>
     </div>
     <div class="field-group"><label class="field-label">Related goal <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
-      <select id="lnEditGoal">${relatedGoalOptionsHtml(l.goalId||'')}</select>
+      <select id="lnEditGoal">${relatedGoalOptionsHtml(l.goalId||'', true)}</select>
     </div>
     <div class="field-group"><label class="field-label">Priority</label>
       <select id="lnEditPriority">${LEARNING_PRIORITIES.map(p=>`<option value="${p}" ${l.priority===p?'selected':''}>${p}</option>`).join('')}</select>
@@ -4031,6 +4073,126 @@ function deleteBrightSpot(id) {
   if (!confirm('Delete this bright spot? This cannot be undone.')) return;
   save(SK.brightSpots, load(SK.brightSpots).filter(x=>x.id!==id));
   renderValues();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENERGISERS / DRAINERS — Qualities & Styles, deliberately self-contained (agreed
+// Sept 2026). Not yet wired into Will/Skill/Connectivity structurally — open question
+// which dimension(s) it belongs to long-term. Ordered like Values/Goals/Traits (▲/▼,
+// not a stored priority number); Low/Medium/High is a separate categorisation field.
+function energiserDrainerColumnHtml(type, label) {
+  const items = ENERGISERS_DRAINERS.filter(e => e.type === type);
+  let html = `<div class="card">
+    <div style="font-weight:500;margin-bottom:.5rem">${label}</div>`;
+  if (!items.length) {
+    html += `<div class="empty-state" style="padding:1rem">None yet.</div>`;
+  } else {
+    items.forEach((e, i) => {
+      const valueTags = (e.valueIds||[]).map(vid => { const v = VALUES.find(x=>x.id===vid); return v ? `<span class="tag" style="color:var(--accent)">${escapeHtml(v.label)}</span>` : ''; }).join('');
+      const sourceLearning = e.sourceLearningId ? load(SK.learnings).find(l=>l.id===e.sourceLearningId) : null;
+      html += `<div class="card-sm" style="margin-bottom:.625rem">
+        <div style="display:flex;justify-content:space-between;gap:8px">
+          <span style="font-size:13px;font-weight:500">${escapeHtml(e.description)}</span>
+          ${e.priority?`<span class="tag">${e.priority}</span>`:''}
+        </div>
+        ${e.notes?`<div style="font-size:13px;color:var(--text2);margin-top:2px">${escapeHtml(e.notes)}</div>`:''}
+        ${(valueTags||sourceLearning)?`<div class="action-meta" style="margin-top:4px">${valueTags}${sourceLearning?`<span style="color:var(--text3)">↩ from a Learning</span>`:''}</div>`:''}
+        <div class="action-btns" style="margin-top:6px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="moveEnergiserDrainer('${e.id}',-1)" ${i===0?'disabled':''}>▲</button>
+          <button class="btn btn-secondary btn-sm" onclick="moveEnergiserDrainer('${e.id}',1)" ${i===items.length-1?'disabled':''}>▼</button>
+          <button class="btn btn-secondary btn-sm" onclick="openEditEnergiserDrainer('${type}','${e.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteEnergiserDrainer('${e.id}')">✕</button>
+        </div>
+      </div>`;
+    });
+  }
+  html += `<button class="btn btn-secondary btn-sm" onclick="openEditEnergiserDrainer('${type}', null)">+ Add ${type==='energiser'?'Energiser':'Drainer'}</button>
+  </div>`;
+  return html;
+}
+function openEditEnergiserDrainer(type, id, sourceLearningId, prefillDescription) {
+  const e = id ? ENERGISERS_DRAINERS.find(x=>x.id===id) : null;
+  const selectedValueIds = e?.valueIds || [];
+  const desc = e ? e.description : (prefillDescription || '');
+  const body = `
+    <div class="field-group"><label class="field-label">Description</label><textarea id="edDesc">${escapeHtml(desc)}</textarea></div>
+    <div class="field-group"><label class="field-label">Related value(s) <span style="font-weight:400;color:var(--text3)">(optional, tap any that fit)</span></label>
+      <input type="hidden" id="edValueIds" value="${selectedValueIds.join(',')}">
+      <div class="chip-row">
+        ${VALUES.map(v=>`<span class="chip suggest ${selectedValueIds.includes(v.id)?'selected':''}" onclick="toggleEdValueChip('${v.id}', this)">${escapeHtml(v.label)}</span>`).join('')}
+      </div>
+    </div>
+    <div class="field-group"><label class="field-label">Brief notes <span style="font-weight:400;color:var(--text3)">(optional)</span></label><input type="text" id="edNotes" value="${e?escapeHtml(e.notes||''):''}"></div>
+    <div class="field-group"><label class="field-label">Priority <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <select id="edPriority">
+        <option value="">— None —</option>
+        ${ENERGISER_DRAINER_PRIORITIES.map(p=>`<option value="${p}" ${e?.priority===p?'selected':''}>${p}</option>`).join('')}
+      </select>
+    </div>
+    ${(e?.sourceLearningId || sourceLearningId) ? `<p style="font-size:12px;color:var(--text3)">Linked to a Learning — this connection stays even if you edit the text here.</p>` : ''}`;
+  openModal(`${id?'Edit':'Add'} ${type==='energiser'?'Energiser':'Drainer'}`, body,
+    `<button class="btn btn-secondary" onclick="closeModal(); renderTraits()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveEnergiserDrainer('${type}','${id||''}','${sourceLearningId||''}')">Save</button>`);
+}
+function toggleEdValueChip(vid, el) {
+  const input = document.getElementById('edValueIds');
+  let ids = input.value ? input.value.split(',').filter(Boolean) : [];
+  if (ids.includes(vid)) { ids = ids.filter(x=>x!==vid); el.classList.remove('selected'); }
+  else { ids.push(vid); el.classList.add('selected'); }
+  input.value = ids.join(',');
+}
+function saveEnergiserDrainer(type, id, newSourceLearningId) {
+  const description = document.getElementById('edDesc').value.trim();
+  if (!description) { alert('Please describe the action or activity.'); return; }
+  const valueIdsRaw = document.getElementById('edValueIds').value;
+  const valueIds = valueIdsRaw ? valueIdsRaw.split(',').filter(Boolean) : [];
+  const notes = document.getElementById('edNotes').value.trim();
+  const priority = document.getElementById('edPriority').value || null;
+  if (!id) {
+    ENERGISERS_DRAINERS.push({ id:'ed_'+uid(), type, description, valueIds, notes, priority, sourceLearningId: newSourceLearningId||null, date:today() });
+  } else {
+    Object.assign(ENERGISERS_DRAINERS.find(x=>x.id===id), { description, valueIds, notes, priority });
+  }
+  saveEnergisersDrainers();
+  closeModal(); renderTraits();
+  if (newSourceLearningId) promptEditConvertedLearning(newSourceLearningId, type);
+}
+function moveEnergiserDrainer(id, direction) {
+  const item = ENERGISERS_DRAINERS.find(e=>e.id===id); if (!item) return;
+  const sameType = ENERGISERS_DRAINERS.filter(e=>e.type===item.type);
+  const posInType = sameType.findIndex(e=>e.id===id);
+  const targetPosInType = posInType + direction;
+  if (targetPosInType < 0 || targetPosInType >= sameType.length) return;
+  const swapWith = sameType[targetPosInType];
+  const i = ENERGISERS_DRAINERS.findIndex(e=>e.id===item.id);
+  const j = ENERGISERS_DRAINERS.findIndex(e=>e.id===swapWith.id);
+  [ENERGISERS_DRAINERS[i], ENERGISERS_DRAINERS[j]] = [ENERGISERS_DRAINERS[j], ENERGISERS_DRAINERS[i]];
+  saveEnergisersDrainers();
+  renderTraits();
+}
+function deleteEnergiserDrainer(id) {
+  if (!confirm('Delete this permanently? This cannot be undone.')) return;
+  ENERGISERS_DRAINERS = ENERGISERS_DRAINERS.filter(x=>x.id!==id);
+  saveEnergisersDrainers();
+  renderTraits();
+}
+// Converting a Learning: the Learning itself is left fully intact (agreed Sept 2026) —
+// this only creates a new, independent Energiser/Drainer with a live back-reference.
+// Editing the Energiser/Drainer's own description later never changes the Learning, and
+// vice versa; only the link between them stays valid.
+function openConvertLearningChoice(learningId) {
+  const l = load(SK.learnings).find(x=>x.id===learningId); if (!l) return;
+  const body = `<p style="font-size:13px;color:var(--text2);margin-bottom:1rem">The Learning itself stays exactly as it is — this creates a new, separate Energiser or Drainer alongside it, starting from the same description.</p>`;
+  openModal('Convert to…', body,
+    `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-secondary" onclick="closeModal(); openEditEnergiserDrainer('drainer', null, '${learningId}', ${JSON.stringify(l.description)})">🔋 Drainer</button>
+     <button class="btn btn-primary" onclick="closeModal(); openEditEnergiserDrainer('energiser', null, '${learningId}', ${JSON.stringify(l.description)})">⚡ Energiser</button>`);
+}
+function promptEditConvertedLearning(learningId, type) {
+  const body = `<p style="font-size:13px;color:var(--text2)">This has been added as ${type==='energiser'?'an Energiser':'a Drainer'}. The original Learning is still exactly as it was — worth going back and rewording it to focus on what you learned from noticing this, now that the action itself is captured separately.</p>`;
+  openModal('Added', body,
+    `<button class="btn btn-secondary" onclick="closeModal(); renderLearnings()">Not now</button>
+     <button class="btn btn-primary" onclick="closeModal(); openEditLearning('${learningId}')">Edit this Learning now</button>`);
 }
 
 function buildScenarioContext() {
@@ -4155,7 +4317,7 @@ function buildScenarioContext() {
     const meta = [fmtDate(l.date)];
     const labels = themeLabelsFor(l);
     if (labels.length) meta.push(`theme(s): ${labels.join(', ')}`);
-    if (l.goalId) meta.push(`relates to: ${findGoal(l.goalId)?.title||''}`);
+    if (l.goalId) meta.push(`relates to: ${goalTitleForDisplay(l.goalId)}`);
     lines.push(`- ${l.description} (${meta.join(', ')})`);
   });
   lines.push('');
@@ -4271,7 +4433,7 @@ function buildLearningsForClaude() {
     const meta = [];
     if (l.date) meta.push(fmtDate(l.date));
     if (l.category) meta.push(l.category);
-    if (l.goalId) meta.push(`relates to: ${findGoal(l.goalId)?.title||''}`);
+    if (l.goalId) meta.push(`relates to: ${goalTitleForDisplay(l.goalId)}`);
     const existingThemes = themeLabelsFor(l);
     if (existingThemes.length) meta.push(`current theme(s): ${existingThemes.join(', ')}`);
     lines.push(`${i+1}. ${l.description}${meta.length?` (${meta.join(', ')})`:''}`);
@@ -4562,7 +4724,7 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aRows), 'Actions');
 
   const lRows = [['Date','Description','Category','Related Goal','Priority']];
-  load(SK.learnings).forEach(l => lRows.push([l.date, l.description, l.category||'', findGoal(l.goalId)?.title||'', l.priority||'']));
+  load(SK.learnings).forEach(l => lRows.push([l.date, l.description, l.category||'', goalTitleForDisplay(l.goalId), l.priority||'']));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lRows), 'Learnings');
 
   const scRows = [['Date','Text','Category','Timing','Priority','Benefits','Outcome','Rationale','Notes']];
@@ -4577,7 +4739,7 @@ function exportExcel() {
 
 function buildBackupData() {
   return {
-    exported:today(), values:VALUES, traits:TRAITS, behavioural:BEHAVIOURAL, goals:GOALS, skills:SKILLS, relevanceCriteria:RELEVANCE_CRITERIA,
+    exported:today(), values:VALUES, traits:TRAITS, behavioural:BEHAVIOURAL, goals:GOALS, skills:SKILLS, relevanceCriteria:RELEVANCE_CRITERIA, energisersDrainers:ENERGISERS_DRAINERS,
     traitNotes:load(SK.traitNotes),
     valueScores:load(SK.valueScores), goalCheckins:load(SK.goalCheckins),
     willSessions:load(SK.willSessions), skillSessions:load(SK.skillSessions), connectivitySessions:load(SK.connectivitySessions),
@@ -4650,6 +4812,7 @@ function applyRestoreData(data) {
   if (data.goals) { GOALS = data.goals; saveGoals(); }
   if (data.skills) { SKILLS = data.skills; saveSkillsList(); }
   if (data.relevanceCriteria) { RELEVANCE_CRITERIA = data.relevanceCriteria; saveRelevanceCriteria(); }
+  if (data.energisersDrainers) { ENERGISERS_DRAINERS = data.energisersDrainers; saveEnergisersDrainers(); }
   if (data.valueScores) save(SK.valueScores, data.valueScores);
   if (data.goalCheckins) save(SK.goalCheckins, data.goalCheckins);
   if (data.willSessions) save(SK.willSessions, data.willSessions);
@@ -4726,7 +4889,7 @@ function snapshotWorkspaceData(wsId) {
   try { scratchpadCategories = JSON.parse(wsGet(SK.scratchpadCategories)) || []; } catch(e) { scratchpadCategories = []; }
   const data = {
     values: load(SK.values), traits: load(SK.traits), behavioural,
-    goals: load(SK.goals), skills: load(SK.skills), relevanceCriteria: load(SK.relevanceCriteria),
+    goals: load(SK.goals), skills: load(SK.skills), relevanceCriteria: load(SK.relevanceCriteria), energisersDrainers: load(SK.energisersDrainers),
     traitNotes: load(SK.traitNotes),
     valueScores: load(SK.valueScores), goalCheckins: load(SK.goalCheckins),
     willSessions: load(SK.willSessions), skillSessions: load(SK.skillSessions), connectivitySessions: load(SK.connectivitySessions),
@@ -4746,6 +4909,7 @@ function restoreWorkspaceData(wsId, data) {
   if (data.goals) save(SK.goals, data.goals);
   if (data.skills) save(SK.skills, data.skills);
   if (data.relevanceCriteria) save(SK.relevanceCriteria, data.relevanceCriteria);
+  if (data.energisersDrainers) save(SK.energisersDrainers, data.energisersDrainers);
   if (data.traitNotes) save(SK.traitNotes, data.traitNotes);
   if (data.valueScores) save(SK.valueScores, data.valueScores);
   if (data.goalCheckins) save(SK.goalCheckins, data.goalCheckins);
@@ -4870,6 +5034,15 @@ function openModal(title, body, footer) {
   document.getElementById('modalFooter').innerHTML = footer;
   document.getElementById('modalOverlay').classList.add('open');
   document.getElementById('modalBox').scrollTop = 0;
+  // If this modal has actual editable fields (not just read-only content like a generated
+  // snapshot to copy), don't let an accidental click on the backdrop silently discard
+  // whatever's been typed — require an explicit Cancel/Save/Close button press instead.
+  // Read-only modals (Copy scenario context, the recap, etc.) keep the old "tap outside to
+  // dismiss" convenience, since there's nothing to lose there.
+  const modalBodyEl = document.getElementById('modalBody');
+  window.currentModalHasEditableFields = !!modalBodyEl.querySelector(
+    'input:not([readonly]):not([type=checkbox]):not([type=range]), textarea:not([readonly]), select'
+  );
 }
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 
@@ -4950,8 +5123,21 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.addEventListener('click', () => showView(tab.dataset.view));
   });
-  document.getElementById('modalOverlay').addEventListener('click', e => {
-    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  // Dismiss-on-click-outside, done carefully: a plain 'click' listener fires wherever the
+  // mouse is *released*, not where it started. That means dragging to select text inside a
+  // field — if the drag strays even slightly past the field's edge onto the backdrop before
+  // you let go — was being read as "clicked outside" and closing the modal, discarding
+  // whatever was being edited. Tracking mousedown separately and only closing when BOTH the
+  // press and the release happened on the backdrop itself fixes that, without losing the
+  // "tap outside to dismiss" behaviour when someone genuinely means to do that.
+  let modalMouseDownOnOverlay = false;
+  const modalOverlayEl = document.getElementById('modalOverlay');
+  modalOverlayEl.addEventListener('mousedown', e => {
+    modalMouseDownOnOverlay = (e.target === modalOverlayEl);
+  });
+  modalOverlayEl.addEventListener('click', e => {
+    if (e.target === modalOverlayEl && modalMouseDownOnOverlay && !window.currentModalHasEditableFields) closeModal();
+    modalMouseDownOnOverlay = false;
   });
   const wsSwitcherEl = document.getElementById('workspaceSwitcher');
   if (wsSwitcherEl) wsSwitcherEl.addEventListener('change', e => switchWorkspace(e.target.value));
