@@ -4462,10 +4462,15 @@ function copyLearningsForClaude() {
   alert('Copied — paste it into a new Claude chat.');
 }
 function parseClaudeThemeReply(text) {
+  // Split on "THEME:" itself (as a lookahead, so it stays part of each block), rather than
+  // relying on the "---" separator we ask Claude to include — if a reply ever omits that
+  // separator even once, splitting on it collapses everything after into one block, and a
+  // non-global match() then only ever finds the first theme, silently dropping the rest.
+  // This way, correctness doesn't depend on Claude following that one formatting detail.
   const themes = []; // { label, description, numbers:[...] }
   let unassigned = [];
-  const blocks = text.split(/^---\s*$/m);
-  blocks.forEach(block => {
+  const themeBlocks = text.split(/(?=^THEME:\s*)/im).filter(b => /^THEME:/im.test(b));
+  themeBlocks.forEach(block => {
     const themeMatch = block.match(/THEME:\s*(.+)/i);
     const descMatch = block.match(/DESCRIPTION:\s*(.+)/i);
     const learningsMatch = block.match(/LEARNINGS:\s*(.+)/i);
@@ -4473,11 +4478,11 @@ function parseClaudeThemeReply(text) {
       const numbers = learningsMatch[1].split(',').map(n=>parseInt(n.trim(),10)).filter(n=>!isNaN(n));
       themes.push({ label: themeMatch[1].trim(), description: descMatch?descMatch[1].trim():'', numbers });
     }
-    const unassignedMatch = block.match(/UNASSIGNED:\s*(.+)/i);
-    if (unassignedMatch) {
-      unassigned = unassignedMatch[1].split(',').map(n=>parseInt(n.trim(),10)).filter(n=>!isNaN(n));
-    }
   });
+  const unassignedMatch = text.match(/UNASSIGNED:\s*(.+)/i);
+  if (unassignedMatch) {
+    unassigned = unassignedMatch[1].split(',').map(n=>parseInt(n.trim(),10)).filter(n=>!isNaN(n));
+  }
   return { themes, unassigned };
 }
 function previewThemeReply() {
