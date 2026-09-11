@@ -5098,6 +5098,12 @@ function seedExampleWorkspace() {
     { id: uidE(), valueId: vCreative.id, date: daysAgo(10), value: 6 },
     { id: uidE(), valueId: vPresent.id, date: daysAgo(90), value: 6 },
     { id: uidE(), valueId: vPresent.id, date: daysAgo(14), value: 6 },
+    { id: uidE(), valueId: vHonest.id, date: daysAgo(120), value: 6 },
+    { id: uidE(), valueId: vHonest.id, date: daysAgo(20), value: 7 },
+    { id: uidE(), valueId: vConnective.id, date: daysAgo(100), value: 6 },
+    { id: uidE(), valueId: vConnective.id, date: daysAgo(15), value: 7 },
+    { id: uidE(), valueId: vAmbitious.id, date: daysAgo(90), value: 8 },
+    { id: uidE(), valueId: vAmbitious.id, date: daysAgo(10), value: 7 },
   ]);
 
   // ── Goals ───────────────────────────────────────────────────
@@ -5121,15 +5127,34 @@ function seedExampleWorkspace() {
     { id: uidE(), goalId: gFamily.id, date: daysAgo(12), value: 6 },
   ]);
 
+  // ── Goal Relevance: weighing up potential directions for gMoreSenior ────
+  const critStretch = { id: uidE(), goalId: gMoreSenior.id, label: 'Extent to which my mind feels stretched' };
+  const critMyPeople = { id: uidE(), goalId: gMoreSenior.id, label: "People I work with feel like \"me\" type people" };
+  const critDesireLearn = { id: uidE(), goalId: gMoreSenior.id, label: 'I have more desire to learn' };
+  put(SK.relevanceCriteria, [critStretch, critMyPeople, critDesireLearn]);
+  put(SK.tactics, [
+    { id: uidE(), goalId: gMoreSenior.id, title: 'A more creative role', scores: { [critStretch.id]: 6, [critMyPeople.id]: 8, [critDesireLearn.id]: 7 }, date: daysAgo(30) },
+    { id: uidE(), goalId: gMoreSenior.id, title: 'A management role that leads to leadership', scores: { [critStretch.id]: 8, [critMyPeople.id]: 5, [critDesireLearn.id]: 6 }, date: daysAgo(30) },
+    { id: uidE(), goalId: gMoreSenior.id, title: 'A teaching role', scores: { [critStretch.id]: 7, [critMyPeople.id]: 7, [critDesireLearn.id]: 9 }, date: daysAgo(30) },
+  ]);
+
   // ── Qualities & Styles: Strengths, Saboteur, Personality, Behavioural ──
   const tCreativity = { id: uidE(), category: 'strengths', label: 'Creativity', notes: 'The part of the job I miss most.', importance: 'very', priority: 1, viaDescription: VIA_STRENGTH_DESCRIPTIONS['Creativity'] };
   const tLeadership = { id: uidE(), category: 'strengths', label: 'Leadership', notes: '', importance: 'important', priority: 2, viaDescription: VIA_STRENGTH_DESCRIPTIONS['Leadership'] };
   const tLoveLearning = { id: uidE(), category: 'strengths', label: 'Love of Learning', notes: '', importance: 'important', priority: 3, viaDescription: VIA_STRENGTH_DESCRIPTIONS['Love of Learning'] };
   const tHonestyStr = { id: uidE(), category: 'strengths', label: 'Honesty', notes: '', importance: 'important', priority: 4, viaDescription: VIA_STRENGTH_DESCRIPTIONS['Honesty'] };
   const tHyperAch = { id: uidE(), category: 'saboteurs', label: 'Hyper-Achiever', notes: "My default setting whenever something might lead somewhere — I go all in before I've decided if I even want it.", importance: 'very', priority: 1, score: 7, sageStrength: SABOTEUR_REFERENCE['Hyper-Achiever'].strength, saboteurAbuse: SABOTEUR_REFERENCE['Hyper-Achiever'].abuse };
-  const TRAITS_SEED = [tCreativity, tLeadership, tLoveLearning, tHonestyStr, tHyperAch];
+  const tIdol = { id: uidE(), category: 'idol', label: 'Recognition', notes: "Probably the real reason 'the next step' feels so pulling, even when I'm not sure I want it.", importance: null, priority: 1 };
+  const TRAITS_SEED = [tCreativity, tLeadership, tLoveLearning, tHonestyStr, tHyperAch, tIdol];
+  const OCEAN_NOTES = {
+    Openness: "Curious about doing things differently — probably why a completely different path doesn't scare me as much as it maybe should.",
+    Conscientiousness: 'Reliable to a fault — sometimes says yes because saying no feels like letting someone down.',
+    Extraversion: 'Genuinely energised by people, in short bursts — a full day of meetings still wipes me out.',
+    Agreeableness: "Quick to see other people's point of view — occasionally at the cost of my own.",
+    Neuroticism: "Fine under day-to-day pressure, but the bigger 'what am I doing with my life' questions keep me up some nights.",
+  };
   OCEAN_ORDER.forEach((label, i) => {
-    TRAITS_SEED.push({ id: uidE(), category: 'personality', label, notes: '', notesDetail: '', importance: null, percent: [62, 58, 70, 55, 40][i] || 50 });
+    TRAITS_SEED.push({ id: uidE(), category: 'personality', label, notes: OCEAN_NOTES[label] || '', notesDetail: '', importance: null, percent: [62, 58, 70, 55, 40][i] || 50 });
   });
   put(SK.traits, TRAITS_SEED);
   put(SK.behavioural, {
@@ -5155,6 +5180,10 @@ function seedExampleWorkspace() {
   put(SK.willSessions, [
     { id: uidE(), date: daysAgo(100), responses: mkResponses(['w1','w2','w3','w4'], [6,5,7,6]) },
     { id: uidE(), date: daysAgo(15), responses: mkResponses(['w1','w2','w3','w4'], [6,6,7,7]) },
+  ]);
+  put(SK.skillSessions, [
+    { id: uidE(), date: daysAgo(95), responses: mkResponses(['s1','s2','s3','s4'], [7,6,6,5]) },
+    { id: uidE(), date: daysAgo(18), responses: mkResponses(['s1','s2','s3','s4'], [7,7,6,6]) },
   ]);
   put(SK.connectivitySessions, [
     { id: uidE(), date: daysAgo(90), responses: mkResponses(['c1','c2','c3','c4'], [7,6,6,5]) },
@@ -5195,6 +5224,9 @@ function seedExampleWorkspace() {
     { id: uidE(), type: 'energiser', description: 'One-on-ones where someone has a genuine breakthrough', valueIds: [vConnective.id], notes: '', priority: 'Medium', sourceLearningId: null, date: daysAgo(48) },
     { id: uidE(), type: 'drainer', description: 'Status meetings that could have been an email', valueIds: [], notes: '', priority: 'Medium', sourceLearningId: null, date: daysAgo(47) },
     { id: uidE(), type: 'drainer', description: "Every time I get asked to lead something, I say yes without checking whether it's actually the direction I want to grow in.", valueIds: [], notes: 'Converted from a Learning — the exact moment I realised the pattern, not just the drain.', priority: 'High', sourceLearningId: lNotTheJob.id, date: daysAgo(45) },
+    { id: uidE(), type: 'energiser', description: 'A proper weekend hike with no phone signal', valueIds: [vPresent.id], notes: '', priority: 'High', sourceLearningId: null, date: daysAgo(35) },
+    { id: uidE(), type: 'energiser', description: 'Cooking a full meal from scratch for people I love, no recipe, just winging it', valueIds: [vGenerous.id], notes: '', priority: 'Medium', sourceLearningId: null, date: daysAgo(33) },
+    { id: uidE(), type: 'drainer', description: "Realising I've checked my phone during a conversation that actually mattered", valueIds: [vPresent.id], notes: '', priority: 'Medium', sourceLearningId: null, date: daysAgo(28) },
   ]);
 
   put(SK.displayName, 'Sam');
