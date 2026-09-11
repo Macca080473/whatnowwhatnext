@@ -667,8 +667,12 @@ function listWorkspaces() {
     const stored = JSON.parse(localStorage.getItem(GLOBAL_WORKSPACES_KEY));
     if (stored && stored.length) return stored;
   } catch(e) {}
-  const seed = [{ id:'default', name:'Me' }];
+  // First-ever load: seed "Me" (blank) alongside a pre-populated "Example" workspace,
+  // so there's something real to explore before adding your own content. See
+  // seedExampleWorkspace() — this only ever runs this once, here, on true first load.
+  const seed = [{ id:'default', name:'Me' }, { id:EXAMPLE_WS_ID, name:'Example' }];
   localStorage.setItem(GLOBAL_WORKSPACES_KEY, JSON.stringify(seed));
+  seedExampleWorkspace();
   return seed;
 }
 function saveWorkspaceList(list) { localStorage.setItem(GLOBAL_WORKSPACES_KEY, JSON.stringify(list)); }
@@ -1236,6 +1240,11 @@ function renderInstructions() {
         <li>Activate you by surfacing small, manageable actions and things to try when confronted with opportunities, challenges and new scenarios.</li>
         <li>Sustain positive new habits through consistent use.</li>
       </ul>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">Not sure where to start?</div>
+      <p style="font-size:14px;color:var(--text2);line-height:1.7">Switch to the <strong>Example</strong> workspace (top right, next to Manage) for a fully populated look at what real content looks like — a fictional person's values, goals, and learnings, filled in as an example rather than a blank page. Nothing there affects your own workspace, and you can switch straight back to <strong>Me</strong> whenever you're ready to start your own.</p>
     </div>
 
     <div class="card">
@@ -5054,12 +5063,149 @@ function closeModal() { document.getElementById('modalOverlay').classList.remove
 // ═══════════════════════════════════════════════════════════════
 // DEMO DATA
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// EXAMPLE WORKSPACE — a pre-populated "Example" workspace that ships
+// alongside a brand-new user's own blank "Me" workspace, so there's
+// something real to explore before adding your own content. Agreed
+// Sept 2026: fictional persona (Sam, three years into a marketing job,
+// informally asked to lead a few things without any title change — genuinely
+// unsure which direction to grow in), no surname, deliberately not senior,
+// so the tool doesn't read as something only for people already established
+// in their career. Seeded once,
+// into its own namespaced workspace — never touches "Me" or any other
+// workspace, and never re-seeds or overwrites once it's run.
+const EXAMPLE_WS_ID = 'example';
+function seedExampleWorkspace() {
+  const wsPrefix = `bb_ws_${EXAMPLE_WS_ID}_`;
+  const put = (key, value) => localStorage.setItem(wsPrefix + key, typeof value === 'string' ? value : JSON.stringify(value));
+  const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0,10); };
+  const uidE = () => 'ex_' + Math.random().toString(36).slice(2, 10);
+
+  // ── Values ──────────────────────────────────────────────────
+  const vCreative = { id: uidE(), label: 'Creative', type: 'intrinsic', notes: "I feel most myself when I'm the one actually making something, not just briefing other people to make it.", shareTrend: true, createdDate: daysAgo(180) };
+  const vCurious = { id: uidE(), label: 'Curious', type: 'intrinsic', notes: '', shareTrend: false, createdDate: daysAgo(180) };
+  const vHonest = { id: uidE(), label: 'Honest', type: 'intrinsic', notes: 'Including with myself, about what I actually want, not just what looks good on paper.', shareTrend: false, createdDate: daysAgo(180) };
+  const vPresent = { id: uidE(), label: 'Present', type: 'intrinsic', notes: '', shareTrend: false, createdDate: daysAgo(180) };
+  const vConnective = { id: uidE(), label: 'Connective', type: 'extrinsic', notes: 'When I do get to lead something, I want people to feel backed, not just told what to do.', shareTrend: false, createdDate: daysAgo(180) };
+  const vGenerous = { id: uidE(), label: 'Generous', type: 'extrinsic', notes: '', shareTrend: false, createdDate: daysAgo(180) };
+  const vAmbitious = { id: uidE(), label: 'Ambitious', type: 'extrinsic', notes: '', shareTrend: false, createdDate: daysAgo(180) };
+  const vDependable = { id: uidE(), label: 'Dependable', type: 'extrinsic', notes: '', shareTrend: false, createdDate: daysAgo(180) };
+  const VALUES_SEED = [vCreative, vCurious, vHonest, vPresent, vConnective, vGenerous, vAmbitious, vDependable];
+  put(SK.values, VALUES_SEED);
+  put(SK.valueScores, [
+    { id: uidE(), valueId: vCreative.id, date: daysAgo(150), value: 7 },
+    { id: uidE(), valueId: vCreative.id, date: daysAgo(60), value: 5 },
+    { id: uidE(), valueId: vCreative.id, date: daysAgo(10), value: 6 },
+    { id: uidE(), valueId: vPresent.id, date: daysAgo(90), value: 6 },
+    { id: uidE(), valueId: vPresent.id, date: daysAgo(14), value: 6 },
+  ]);
+
+  // ── Goals ───────────────────────────────────────────────────
+  const sgProtectTime = { id: uidE(), title: 'Protect at least half a day a week for hands-on creative work', notes: '', dueDate: '', target: null };
+  const sgSayYes = { id: uidE(), title: 'Say yes to one genuinely creative project this quarter', notes: '', dueDate: '', target: null };
+  const gProud = { id: uidE(), title: 'I want to feel proud of the work itself, not just my job title', category: 'Career & work', notes: '', dueDate: '', target: 8, valueId: vCreative.id, cadenceMode: 'aligned', checkinCadence: null, shareWithPartner: true, createdDate: daysAgo(170), subGoals: [sgProtectTime, sgSayYes] };
+  const sgAsk = { id: uidE(), title: 'Ask the colleague I\'m mentoring what\'s actually helpful from me, rather than assuming', notes: '', dueDate: '', target: null };
+  const gLeader = { id: uidE(), title: "I want to find out if I'm actually suited to leading people, not just assume I should be", category: 'Career & work', notes: '', dueDate: '', target: null, valueId: vConnective.id, cadenceMode: 'aligned', checkinCadence: null, shareWithPartner: true, createdDate: daysAgo(170), subGoals: [sgAsk] };
+  const gMoreSenior = { id: uidE(), title: "I want to figure out which direction I actually want to grow in, rather than just taking whatever's offered next", category: 'Career & work', notes: '', dueDate: '', target: null, valueId: null, cadenceMode: 'none', checkinCadence: null, shareWithPartner: false, createdDate: daysAgo(150), subGoals: [] };
+  const gFamily = { id: uidE(), title: 'I want to be fully present with my family in the evenings, not still half in my inbox', category: 'Primary relationships', notes: '', dueDate: '', target: null, valueId: vPresent.id, cadenceMode: 'none', checkinCadence: null, shareWithPartner: true, createdDate: daysAgo(160), subGoals: [] };
+  const gEvening = { id: uidE(), title: "I want to protect one evening a week that's just mine", category: 'Recreation & fun', notes: '', dueDate: '', target: null, valueId: null, cadenceMode: 'none', checkinCadence: null, shareWithPartner: true, createdDate: daysAgo(140), subGoals: [] };
+  put(SK.goals, [gProud, gLeader, gMoreSenior, gFamily, gEvening]);
+  put(SK.goalsGroupCadence, 'monthly');
+  put(SK.goalCheckins, [
+    { id: uidE(), goalId: gProud.id, date: daysAgo(150), value: 6 },
+    { id: uidE(), goalId: gProud.id, date: daysAgo(90), value: 5 },
+    { id: uidE(), goalId: gProud.id, date: daysAgo(30), value: 6 },
+    { id: uidE(), goalId: gLeader.id, date: daysAgo(100), value: 6 },
+    { id: uidE(), goalId: gLeader.id, date: daysAgo(20), value: 7 },
+    { id: uidE(), goalId: gFamily.id, date: daysAgo(60), value: 5 },
+    { id: uidE(), goalId: gFamily.id, date: daysAgo(12), value: 6 },
+  ]);
+
+  // ── Qualities & Styles: Strengths, Saboteur, Personality, Behavioural ──
+  const tCreativity = { id: uidE(), category: 'strengths', label: 'Creativity', notes: 'The part of the job I miss most.', importance: 'very', priority: 1, viaDescription: VIA_STRENGTH_DESCRIPTIONS['Creativity'] };
+  const tLeadership = { id: uidE(), category: 'strengths', label: 'Leadership', notes: '', importance: 'important', priority: 2, viaDescription: VIA_STRENGTH_DESCRIPTIONS['Leadership'] };
+  const tLoveLearning = { id: uidE(), category: 'strengths', label: 'Love of Learning', notes: '', importance: 'important', priority: 3, viaDescription: VIA_STRENGTH_DESCRIPTIONS['Love of Learning'] };
+  const tHonestyStr = { id: uidE(), category: 'strengths', label: 'Honesty', notes: '', importance: 'important', priority: 4, viaDescription: VIA_STRENGTH_DESCRIPTIONS['Honesty'] };
+  const tHyperAch = { id: uidE(), category: 'saboteurs', label: 'Hyper-Achiever', notes: "My default setting whenever something might lead somewhere — I go all in before I've decided if I even want it.", importance: 'very', priority: 1, score: 7, sageStrength: SABOTEUR_REFERENCE['Hyper-Achiever'].strength, saboteurAbuse: SABOTEUR_REFERENCE['Hyper-Achiever'].abuse };
+  const TRAITS_SEED = [tCreativity, tLeadership, tLoveLearning, tHonestyStr, tHyperAch];
+  OCEAN_ORDER.forEach((label, i) => {
+    TRAITS_SEED.push({ id: uidE(), category: 'personality', label, notes: '', notesDetail: '', importance: null, percent: [62, 58, 70, 55, 40][i] || 50 });
+  });
+  put(SK.traits, TRAITS_SEED);
+  put(SK.behavioural, {
+    updatedDate: daysAgo(120), customFields: [],
+    naturalStyle: 'Direct, fast-moving, prefers doing over discussing.',
+    adaptedStyle: "Trying to be more consensus-seeking whenever they're asked to lead something — doesn't always come naturally yet.",
+    valueToTeam: 'Clear-headed under pressure, and genuinely wants the people around them to do work they\'re proud of.',
+    idealEnvironment: '', stressTriggers: '', communicationTips: '', managementTips: '', motivationTips: '',
+  });
+
+  // ── Skills, Will, Connectivity ──────────────────────────────
+  const skCreative = { id: uidE(), label: 'Hands-on creative direction' };
+  const skLeading = { id: uidE(), label: 'Leading a project for the first time' };
+  put(SK.skills, [skCreative, skLeading]);
+  put(SK.skillCheckins, [
+    { id: uidE(), skillId: skCreative.id, date: daysAgo(150), value: 8 },
+    { id: uidE(), skillId: skCreative.id, date: daysAgo(80), value: 5 },
+    { id: uidE(), skillId: skCreative.id, date: daysAgo(15), value: 6 },
+    { id: uidE(), skillId: skLeading.id, date: daysAgo(140), value: 4 },
+    { id: uidE(), skillId: skLeading.id, date: daysAgo(20), value: 6 },
+  ]);
+  const mkResponses = (ids, vals) => { const r = {}; ids.forEach((id,i)=>r[id]=vals[i]); return r; };
+  put(SK.willSessions, [
+    { id: uidE(), date: daysAgo(100), responses: mkResponses(['w1','w2','w3','w4'], [6,5,7,6]) },
+    { id: uidE(), date: daysAgo(15), responses: mkResponses(['w1','w2','w3','w4'], [6,6,7,7]) },
+  ]);
+  put(SK.connectivitySessions, [
+    { id: uidE(), date: daysAgo(90), responses: mkResponses(['c1','c2','c3','c4'], [7,6,6,5]) },
+    { id: uidE(), date: daysAgo(10), responses: mkResponses(['c1','c2','c3','c4'], [7,7,7,6]) },
+  ]);
+  put(SK.shareTrendWill, true);
+
+  // ── Bright Spots ────────────────────────────────────────────
+  put(SK.brightSpots, [
+    { id: uidE(), date: daysAgo(8), description: 'Spent an hour actually designing the client deck myself, instead of just giving feedback on someone else\'s draft — best part of my week.', valueId: vCreative.id, goalId: gProud.id },
+    { id: uidE(), date: daysAgo(25), description: "Told my manager honestly that I'm not sure I want to go down the people-management route, even though it feels like the obvious next step.", valueId: vHonest.id, goalId: null },
+  ]);
+
+  // ── Scratchpad ──────────────────────────────────────────────
+  put(SK.scratchpadCategories, ['Work','Personal','Ideas','Questions','Other']);
+  put(SK.scratchpad, [
+    { id: uidE(), date: daysAgo(3), text: "I keep saying yes to 'strategic' work and no to the stuff I'm actually good at. Not sure if that's what leadership requires, or just what I've let it become.", category: 'Work', timing: 'Medium-term', priority: 'Medium', benefits: '', outcome: null, outcomeText: '', rationale: '', notes: '', linkedGoalId: null, linkedSubGoalId: null, linkedActionId: null, linkedLearningId: null },
+  ]);
+
+  // ── Actions & Learnings (with Themes) ───────────────────────
+  const aBlockFriday = { id: uidE(), createdDate: daysAgo(40), description: 'Block Friday mornings for hands-on work — no meetings', dueDate: '', context: 'Career & work', goalId: gProud.id, notes: '', completed: true, completedDate: daysAgo(9) };
+  const aAskTeam = { id: uidE(), createdDate: daysAgo(20), description: 'Ask the colleague I\'m mentoring directly what would actually be helpful from me', dueDate: '', context: 'Career & work', goalId: gLeader.id, notes: '', completed: false, completedDate: null };
+  put(SK.actions, [aBlockFriday, aAskTeam]);
+
+  const thmSuccess = { id: uidE(), label: 'Success on my own terms', description: "Getting clearer on what actually counts as a win for me, rather than assuming it's whatever comes next." };
+  const thmPermission = { id: uidE(), label: 'Giving myself permission', description: "The blockers are rarely time or resources — they're usually me not letting myself." };
+  put(SK.themes, [thmSuccess, thmPermission]);
+
+  const lPermission = { id: uidE(), date: daysAgo(9), description: 'When I protect the time, I actually use it. The problem was never time — it was permission.', category: 'Actions', goalId: gProud.id, priority: 'High', actionId: aBlockFriday.id, themeIds: [thmPermission.id] };
+  const lNotTheJob = { id: uidE(), date: daysAgo(45), description: "Every time I get asked to lead something, I say yes without checking whether it's actually the direction I want to grow in.", category: 'Career & work', goalId: gMoreSenior.id, priority: 'High', actionId: null, themeIds: [thmSuccess.id] };
+  const lAskDontAssume = { id: uidE(), date: daysAgo(22), description: "I've been assuming what would help the colleague I'm mentoring, instead of just asking them.", category: 'Qualities & Styles', goalId: gLeader.id, priority: 'Medium', actionId: null, themeIds: [thmPermission.id] };
+  const lWhatWin = { id: uidE(), date: daysAgo(60), description: "I don't actually know what winning looks like for me — I know what the 'next step' everyone expects is, but not whether I actually want it.", category: 'Career & work', goalId: gMoreSenior.id, priority: 'High', actionId: null, themeIds: [thmSuccess.id] };
+  put(SK.learnings, [lPermission, lNotTheJob, lAskDontAssume, lWhatWin]);
+
+  // ── Energisers / Drainers (one converted from a Learning) ───
+  put(SK.energisersDrainers, [
+    { id: uidE(), type: 'energiser', description: 'Actually making something — a deck, a campaign concept, anything hands-on', valueIds: [vCreative.id], notes: '', priority: 'High', sourceLearningId: null, date: daysAgo(50) },
+    { id: uidE(), type: 'energiser', description: 'One-on-ones where someone has a genuine breakthrough', valueIds: [vConnective.id], notes: '', priority: 'Medium', sourceLearningId: null, date: daysAgo(48) },
+    { id: uidE(), type: 'drainer', description: 'Status meetings that could have been an email', valueIds: [], notes: '', priority: 'Medium', sourceLearningId: null, date: daysAgo(47) },
+    { id: uidE(), type: 'drainer', description: "Every time I get asked to lead something, I say yes without checking whether it's actually the direction I want to grow in.", valueIds: [], notes: 'Converted from a Learning — the exact moment I realised the pattern, not just the drain.', priority: 'High', sourceLearningId: lNotTheJob.id, date: daysAgo(45) },
+  ]);
+
+  put(SK.displayName, 'Sam');
+}
+
 function seedDemoData() {
-  // Demo/example content has been fully removed — every workspace, including a brand
-  // new file opened for the very first time, now starts genuinely blank. This function
-  // is kept as a no-op (rather than deleted) so the existing call site in loadEverything()
-  // needs no change, and so any workspace created under an older version of this file
-  // that still has the 'bb_seeded' flag set behaves identically to one that does not.
+  // Demo/example content has been fully removed from "Me" (or any other workspace a
+  // person creates themselves) — every workspace someone creates starts genuinely
+  // blank. This function is kept as a no-op (rather than deleted) so the existing call
+  // site in loadEverything() needs no change. The pre-populated "Example" workspace is
+  // handled entirely separately, once, in listWorkspaces() — see seedExampleWorkspace().
 }
 
 // ═══════════════════════════════════════════════════════════════
