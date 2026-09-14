@@ -854,6 +854,10 @@ function safeWorkspaceNameForFilename() {
 }
 function fmtDate(d) { if (!d) return '—'; const [y,m,dd]=d.split('-'); return `${dd}/${m}/${y}`; }
 function escapeHtml(s) { return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function truncateWords(s, n) {
+  const words = (s||'').trim().split(/\s+/);
+  return words.length <= n ? s : words.slice(0, n).join(' ') + '…';
+}
 
 // Neutral "time since" phrasing — never a warning colour, never "overdue"
 function timeSince(dateStr) {
@@ -1516,6 +1520,7 @@ function toggleGoalsGuide() {
   btn.textContent = showing ? 'Read the full guide to Goals →' : 'Hide the guide to Goals ↑';
 }
 function renderValues() {
+  const activeValues = VALUES.filter(v=>!v.archived);
   let html = `
     <div class="section-head">
       <div><div class="eyebrow">Reflection</div><div class="section-title">Values</div>
@@ -1523,13 +1528,13 @@ function renderValues() {
       <button class="btn btn-secondary btn-sm" onclick="openManageValues()">Manage values</button>
     </div>`;
 
-  if (!VALUES.length) {
+  if (!activeValues.length) {
     html += `<div class="card">${valuesGuideContentHtml()}</div>
       <div class="empty-state">No values added yet. Use <strong>Manage values</strong> to add your first one.</div>`;
   } else {
     // Snapshot — all latest scores together at a glance
     html += `<div class="grid-3" style="margin-bottom:1.25rem">`;
-    VALUES.forEach(v => {
+    activeValues.forEach(v => {
       const latest = latestCheckin(SK.valueScores, 'valueId', v.id);
       html += `<div class="card-sm" style="text-align:center">
         <div style="font-size:22px;font-weight:500;color:var(--accent)">${latest?latest.value:'—'}</div>
@@ -1540,7 +1545,7 @@ function renderValues() {
   }
 
   ['intrinsic','extrinsic'].forEach(type => {
-    const vals = VALUES.filter(v=>v.type===type);
+    const vals = activeValues.filter(v=>v.type===type);
     if (!vals.length) return;
     html += `<div class="section-label" style="margin-top:${type==='intrinsic'?'0':'1.25rem'}">${type==='intrinsic'?'Self-directed':'Other-directed'} values</div>`;
     vals.forEach(v => {
@@ -1552,6 +1557,7 @@ function renderValues() {
           ${latest?`<span style="font-size:18px;font-weight:500;color:var(--accent)">${latest.value}</span>`:''}
         </div>
         ${v.notes?`<div style="font-size:13px;color:var(--text2);margin-top:2px">${escapeHtml(v.notes)}</div>`:''}
+        ${latest?.note?`<div style="font-size:12px;color:var(--text3);margin-top:2px;font-style:italic">"${escapeHtml(truncateWords(latest.note, 15))}"</div>`:''}
         ${list.length>1?`<div class="chart-wrap-sm"><canvas id="valChart-${v.id}"></canvas></div>`:''}
         <div class="updated-row">${latest?`Last check-in: ${fmtDate(latest.date)} (${timeSince(latest.date)} ago)`:'No check-ins yet'}</div>
         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
@@ -1752,24 +1758,69 @@ function saveEditSession(dim, id) {
 }
 
 function openManageValues() {
-  let body = VALUES.length ? VALUES.map((v,i)=>`
-    <div class="manage-row">
-      <div style="display:flex;flex-direction:column;gap:2px">
-        <button class="btn btn-secondary btn-sm" style="padding:2px 8px" onclick="moveValue('${v.id}',-1)" ${i===0?'disabled':''}>▲</button>
-        <button class="btn btn-secondary btn-sm" style="padding:2px 8px" onclick="moveValue('${v.id}',1)" ${i===VALUES.length-1?'disabled':''}>▼</button>
-      </div>
-      <span class="manage-row-title">${escapeHtml(v.label)}</span>
-      <span class="manage-row-meta">${v.type}</span>
-      <button class="btn btn-secondary btn-sm" onclick="openEditValue('${v.id}')">Edit</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteValue('${v.id}')">✕</button>
-    </div>`).join('') : '<div class="empty-state">No values yet.</div>';
+  const activeValues = VALUES.filter(v=>!v.archived);
+  const archivedValues = VALUES.filter(v=>v.archived);
+
+  function groupRowsHtml(type) {
+    const vals = activeValues.filter(v=>v.type===type);
+    if (!vals.length) return '';
+    return `<div style="font-size:12px;font-weight:500;color:var(--text3);margin:.5rem 0 .35rem">${type==='intrinsic'?'Self-directed':'Other-directed'}</div>` +
+      vals.map((v,i) => `
+      <div class="manage-row">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <button class="btn btn-secondary btn-sm" style="padding:2px 8px" onclick="moveValue('${v.id}',-1)" ${i===0?'disabled':''}>▲</button>
+          <button class="btn btn-secondary btn-sm" style="padding:2px 8px" onclick="moveValue('${v.id}',1)" ${i===vals.length-1?'disabled':''}>▼</button>
+        </div>
+        <span class="manage-row-title">${escapeHtml(v.label)}</span>
+        <button class="btn btn-secondary btn-sm" onclick="openEditValue('${v.id}')">Edit</button>
+        <button class="btn btn-secondary btn-sm" onclick="archiveValue('${v.id}')">Archive</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteValue('${v.id}')">✕</button>
+      </div>`).join('');
+  }
+
+  let body = activeValues.length ? (groupRowsHtml('intrinsic') + groupRowsHtml('extrinsic')) : '<div class="empty-state">No values yet.</div>';
   body += `<button class="btn-add-block" style="margin-top:.5rem" onclick="openEditValue(null)">+ Add value</button>`;
+
+  if (archivedValues.length) {
+    body += `<details style="margin-top:1rem">
+      <summary style="cursor:pointer;font-size:13px;color:var(--text2)">Archived values (${archivedValues.length})</summary>
+      <div style="margin-top:.5rem">
+        ${archivedValues.map(v => `
+        <div class="manage-row">
+          <span class="manage-row-title" style="color:var(--text3)">${escapeHtml(v.label)}</span>
+          <button class="btn btn-secondary btn-sm" onclick="unarchiveValue('${v.id}')">Restore</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteValue('${v.id}')">✕</button>
+        </div>`).join('')}
+      </div>
+    </details>`;
+  }
+
   openModal('Manage Values', body, `<button class="btn btn-secondary" onclick="closeModal(); renderValues()">Close</button>`);
 }
+function archiveValue(id) {
+  const v = VALUES.find(x=>x.id===id); if (!v) return;
+  v.archived = true;
+  saveValues();
+  openManageValues();
+}
+function unarchiveValue(id) {
+  const v = VALUES.find(x=>x.id===id); if (!v) return;
+  v.archived = false;
+  saveValues();
+  openManageValues();
+}
 function moveValue(id, direction) {
-  const i = VALUES.findIndex(v=>v.id===id);
-  const j = i + direction;
-  if (i<0 || j<0 || j>=VALUES.length) return;
+  // Reorder within the same direction (self-directed / other-directed) only — the main
+  // page displays values grouped by direction, so a raw adjacent-array swap that happens
+  // to cross that boundary changed the data but produced no visible change on the page.
+  const item = VALUES.find(v=>v.id===id); if (!item) return;
+  const sameType = VALUES.filter(v=>v.type===item.type);
+  const posInType = sameType.findIndex(v=>v.id===id);
+  const targetPosInType = posInType + direction;
+  if (targetPosInType < 0 || targetPosInType >= sameType.length) return;
+  const swapWith = sameType[targetPosInType];
+  const i = VALUES.findIndex(v=>v.id===item.id);
+  const j = VALUES.findIndex(v=>v.id===swapWith.id);
   [VALUES[i], VALUES[j]] = [VALUES[j], VALUES[i]];
   saveValues();
   openManageValues();
@@ -1817,7 +1868,7 @@ function saveValue(id) {
   const type = document.getElementById('mgValType').value;
   const notes = document.getElementById('mgValNotes').value.trim();
   const shareTrend = document.getElementById('mgValShareTrend').checked;
-  if (!id) VALUES.push({ id:'v_'+uid(), label, type, notes, shareTrend, createdDate: today() });
+  if (!id) VALUES.push({ id:'v_'+uid(), label, type, notes, shareTrend, archived: false, createdDate: today() });
   else Object.assign(VALUES.find(x=>x.id===id), { label, type, notes, shareTrend });
   saveValues();
   openManageValues();
@@ -2633,7 +2684,7 @@ function openEditGoal(goalId) {
     <div class="field-group"><label class="field-label">Value <span style="font-weight:400;color:var(--text3)">(optional — which value does this goal most reflect?)</span></label>
       <select id="mgGoalValue">
         <option value="">— No specific value —</option>
-        ${VALUES.map(v=>`<option value="${v.id}" ${g?.valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}
+        ${VALUES.filter(v=>!v.archived || v.id===g?.valueId).map(v=>`<option value="${v.id}" ${g?.valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}
       </select>
     </div>
     <div class="field-group">
@@ -4020,7 +4071,7 @@ function openAddBrightSpot(valueId) {
     <div class="field-group"><label class="field-label">Date</label><input type="date" id="bsDate" value="${today()}"></div>
     <div class="field-group"><label class="field-label">What happened?</label><textarea id="bsDesc" placeholder="e.g. Put a friend in touch with contacts who could help sell their products"></textarea></div>
     <div class="field-group"><label class="field-label">Value</label>
-      <select id="bsValue">${VALUES.map(v=>`<option value="${v.id}" ${valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>
+      <select id="bsValue">${VALUES.filter(v=>!v.archived || v.id===valueId).map(v=>`<option value="${v.id}" ${valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>
     </div>
     <div class="field-group"><label class="field-label">Related goal <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
       <select id="bsGoal">${relatedGoalOptionsHtml('')}</select>
@@ -4059,7 +4110,7 @@ function openEditBrightSpot(id) {
     <div class="field-group"><label class="field-label">Date</label><input type="date" id="bsEditDate" value="${b.date}"></div>
     <div class="field-group"><label class="field-label">What happened?</label><textarea id="bsEditDesc">${escapeHtml(b.description)}</textarea></div>
     <div class="field-group"><label class="field-label">Value</label>
-      <select id="bsEditValue">${VALUES.map(v=>`<option value="${v.id}" ${b.valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>
+      <select id="bsEditValue">${VALUES.filter(v=>!v.archived || v.id===b.valueId).map(v=>`<option value="${v.id}" ${b.valueId===v.id?'selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>
     </div>
     <div class="field-group"><label class="field-label">Related goal <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
       <select id="bsEditGoal">${relatedGoalOptionsHtml(b.goalId||'')}</select>
@@ -4128,7 +4179,7 @@ function openEditEnergiserDrainer(type, id, sourceLearningId, prefillDescription
     <div class="field-group"><label class="field-label">Related value(s) <span style="font-weight:400;color:var(--text3)">(optional, tap any that fit)</span></label>
       <input type="hidden" id="edValueIds" value="${selectedValueIds.join(',')}">
       <div class="chip-row">
-        ${VALUES.map(v=>`<span class="chip suggest ${selectedValueIds.includes(v.id)?'selected':''}" onclick="toggleEdValueChip('${v.id}', this)">${escapeHtml(v.label)}</span>`).join('')}
+        ${VALUES.filter(v=>!v.archived || selectedValueIds.includes(v.id)).map(v=>`<span class="chip suggest ${selectedValueIds.includes(v.id)?'selected':''}" onclick="toggleEdValueChip('${v.id}', this)">${escapeHtml(v.label)}</span>`).join('')}
       </div>
     </div>
     <div class="field-group"><label class="field-label">Brief notes <span style="font-weight:400;color:var(--text3)">(optional)</span></label><input type="text" id="edNotes" value="${e?escapeHtml(e.notes||''):''}"></div>
