@@ -1810,18 +1810,24 @@ function unarchiveValue(id) {
   openManageValues();
 }
 function moveValue(id, direction) {
-  // Reorder within the same direction (self-directed / other-directed) only — the main
-  // page displays values grouped by direction, so a raw adjacent-array swap that happens
-  // to cross that boundary changed the data but produced no visible change on the page.
+  // Reorder within the same direction (self-directed / other-directed) only, but by
+  // removing and reinserting the item next to its new same-type neighbour — not by
+  // swapping the two — since a swap moves both values the same distance symmetrically,
+  // which can visibly disrupt the flat "all values" snapshot grid at the top of the page
+  // far more than necessary. A reinsert only moves the one value you actually touched;
+  // everything else keeps its existing relative order, including values of the other type.
   const item = VALUES.find(v=>v.id===id); if (!item) return;
   const sameType = VALUES.filter(v=>v.type===item.type);
   const posInType = sameType.findIndex(v=>v.id===id);
   const targetPosInType = posInType + direction;
   if (targetPosInType < 0 || targetPosInType >= sameType.length) return;
-  const swapWith = sameType[targetPosInType];
-  const i = VALUES.findIndex(v=>v.id===item.id);
-  const j = VALUES.findIndex(v=>v.id===swapWith.id);
-  [VALUES[i], VALUES[j]] = [VALUES[j], VALUES[i]];
+  const target = sameType[targetPosInType];
+
+  const fromIndex = VALUES.findIndex(v=>v.id===item.id);
+  VALUES.splice(fromIndex, 1);
+  const targetIndex = VALUES.findIndex(v=>v.id===target.id);
+  VALUES.splice(direction < 0 ? targetIndex : targetIndex + 1, 0, item);
+
   saveValues();
   openManageValues();
 }
