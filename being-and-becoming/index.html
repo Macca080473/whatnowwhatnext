@@ -539,6 +539,16 @@ const VIA_STRENGTH_DESCRIPTIONS = {
   'Zest': "Approaching life with excitement and energy; not doing things halfway or halfheartedly; living life as an adventure; feeling alive and activated.",
   'Appreciation of Beauty & Excellence': "Noticing and appreciating beauty, excellence, and/or skilled performance in various domains of life, from nature to art to mathematics to science to everyday experience.",
 };
+// Reference descriptions for the five Thomas-Kilmann conflict-handling styles.
+// Source: Thomas-Kilmann Conflict Mode Instrument (Thomas & Kilmann). Keys must match
+// the 'conflict-style' category's suggestions exactly.
+const CONFLICT_STYLE_REFERENCE = {
+  'Competing': "Assertive and uncooperative — pursuing your own concerns at the other person's expense. A power-oriented mode: using whatever power seems appropriate to win your position.",
+  'Collaborating': "Assertive and cooperative — working with the other person to find a solution that fully satisfies both parties' concerns, rather than settling for a compromise.",
+  'Compromising': 'Intermediate in both assertiveness and cooperativeness — seeking a mutually acceptable middle ground that partially satisfies both parties.',
+  'Avoiding': 'Unassertive and uncooperative — not addressing the conflict at all, either by sidestepping the issue, postponing it, or withdrawing from a threatening situation.',
+  'Accommodating': "Unassertive and cooperative — neglecting your own concerns to satisfy the other person's, often as an act of selflessness, generosity, or simply yielding to another's point of view.",
+};
 const SABOTEUR_REFERENCE = {
   'Avoider': {
     strength: 'Easy-going, even keeled temperament. Flexible and adaptable.',
@@ -579,19 +589,29 @@ const SABOTEUR_REFERENCE = {
 };
 const TRAIT_CATEGORIES = [
   { id:'strengths', label:'Strengths', suggestions:VIA_CHARACTER_STRENGTHS, extra:'priority',
-    linkName:'VIA Character Strengths Survey', linkUrl:'https://www.viacharacter.org/survey/account/Register' },
+    linkName:'VIA Character Strengths Survey', linkUrl:'https://www.viacharacter.org/survey/account/Register',
+    guideQ:'What are my core strengths and to what extent do I feel I draw on these?' },
   { id:'saboteurs', label:'Saboteurs', suggestions:['Judge','Stickler','Pleaser','Hyper-Achiever','Hyper-Rational','Hyper-Vigilant','Restless','Controller','Victim','Avoider'], extra:'priority-score',
-    linkName:'Saboteur Assessment', linkUrl:'https://positiveintelligence.com/saboteurs/' },
+    linkName:'Saboteur Assessment', linkUrl:'https://positiveintelligence.com/saboteurs/',
+    guideQ:"What's the pattern behind my negative emotions and self-sabotaging reactions?" },
+  { id:'conflict-style', label:'Conflict management style', suggestions:['Competing','Collaborating','Compromising','Avoiding','Accommodating'], extra:'priority-score',
+    linkName:'Conflict Management Style Test (123test)', linkUrl:'https://www.123test.com/conflict-management-style-test/',
+    guideQ:'What do I actually do, instinctively, the moment a disagreement starts?' },
   { id:'personality', label:'Personality profile', suggestions:OCEAN_ORDER, extra:'percent', fixed:true,
-    linkName:'OCEAN Five Factor quiz (Sounds Like Me)', linkUrl:'https://soundslikeme.co.uk/' },
+    linkName:'OCEAN Five Factor quiz (Sounds Like Me)', linkUrl:'https://soundslikeme.co.uk/',
+    guideQ:'What are the consistent traits for how I engage with the world — and how do they shape my default behaviour across situations?' },
   { id:'idol', label:"Dominant 'idol'", suggestions:['Money','Power','Pleasure','Recognition'], extra:'priority',
-    linkName:'The Four Idols (Sahil Bloom)', linkUrl:'https://www.sahilbloom.com/newsletter/the-four-idols-money-power-pleasure-fame' },
+    linkName:'The Four Idols (Sahil Bloom)', linkUrl:'https://www.sahilbloom.com/newsletter/the-four-idols-money-power-pleasure-fame',
+    guideQ:'Which hidden driver (money, power, pleasure or recognition) affects me most when I think I\'m reasoning objectively?' },
   { id:'social-style', label:'Social style', suggestions:['Analytical','Driver','Expressive','Amiable'], extra:'none',
-    linkName:'Retail Doctor Personality Quiz', linkUrl:'https://www.retaildoc.com/blog/personality-test-are-you-a-driver-expressive-analytical-or-amiable' },
+    linkName:'Retail Doctor Personality Quiz', linkUrl:'https://www.retaildoc.com/blog/personality-test-are-you-a-driver-expressive-analytical-or-amiable',
+    guideQ:'How do I naturally come across to other people, and is that how I want to come across?' },
   { id:'leadership-type', label:'Leadership type', suggestions:CONKER_LEADERSHIP_TYPES, extra:'none',
-    linkName:'Conker Inside quiz', linkUrl:'https://conkerwithus.com/conker-inside' },
+    linkName:'Conker Inside quiz', linkUrl:'https://conkerwithus.com/conker-inside',
+    guideQ:"What kind of leader am I when I'm not trying to be one, and is that the leader I want to be?" },
   { id:'meaning', label:'Relationship with meaning', suggestions:[], extra:'presence-search',
-    linkName:"Arthur Brooks' Meaning in Life questionnaire", linkUrl:'https://www.arthurbrooks.com/quiz/meaning-in-life' },
+    linkName:"Arthur Brooks' Meaning in Life questionnaire", linkUrl:'https://www.arthurbrooks.com/quiz/meaning-in-life',
+    guideQ:'How much meaning do I feel I have right now, and how actively am I searching for more?' },
 ];
 
 // Example/placeholder content has been fully removed — every workspace now starts blank.
@@ -937,6 +957,9 @@ const BEHAVIOURAL_FIELDS = [
   { id:'communicationTips', label:'Communication tips' },
   { id:'managementTips', label:'Management tips' },
   { id:'motivationTips', label:'Motivation tips' },
+  { id:'responseToChallenge', label:'Response to challenge' },
+  { id:'processingStyle', label:'Processing style' },
+  { id:'helpSeekingTendency', label:'Help-seeking tendency' },
 ];
 function defaultBehavioural() {
   const o = { updatedDate:null, customFields:[] }; // customFields: [{id, label, value}]
@@ -1967,6 +1990,14 @@ function renderTraits() {
       migratedAny = true;
     }
   });
+  // Same backfill for Conflict management style — covers the case where someone types
+  // one of the five style names directly rather than tapping the suggestion chip.
+  TRAITS.forEach(t => {
+    if (t.category === 'conflict-style' && t.styleDescription === undefined && CONFLICT_STYLE_REFERENCE[t.label]) {
+      t.styleDescription = CONFLICT_STYLE_REFERENCE[t.label];
+      migratedAny = true;
+    }
+  });
   if (migratedAny) saveTraits();
 
   let html = `
@@ -1987,6 +2018,7 @@ function renderTraits() {
         </div>
         ${cat.fixed ? '' : `<button class="btn btn-secondary btn-sm" onclick="openAddTrait('${cat.id}')">+ Add</button>`}
       </div>
+      ${cat.guideQ?`<div class="guide-q" style="font-size:13px;margin:.25rem 0 .5rem">"${escapeHtml(cat.guideQ)}"</div>`:''}
       <div style="margin-top:.5rem">
       ${items.length ? items.map(t=>{
         if (cat.extra==='presence-search') {
@@ -2017,7 +2049,7 @@ function renderTraits() {
           </span>
           ${t.notesDetail?`<details style="flex-basis:100%;margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Show more</summary><div style="font-size:13px;color:var(--text2);margin-top:.4rem;white-space:pre-wrap">${escapeHtml(t.notesDetail)}</div></details>`:''}
           ${(t.sageStrength||t.saboteurAbuse)?`<details style="flex-basis:100%;margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Show sage strength & saboteur abuse</summary><div style="font-size:13px;color:var(--text2);margin-top:.4rem">${t.sageStrength?`<p style="margin-bottom:.5rem"><strong>Sage underlying strength:</strong> ${escapeHtml(t.sageStrength)}</p>`:''}${t.saboteurAbuse?`<p><strong>Saboteur abuse:</strong> ${escapeHtml(t.saboteurAbuse)}</p>`:''}</div></details>`:''}
-          ${t.viaDescription?`<details style="flex-basis:100%;margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Show description</summary><div style="font-size:13px;color:var(--text2);margin-top:.4rem">${escapeHtml(t.viaDescription)}</div></details>`:''}
+          ${(t.viaDescription||t.styleDescription)?`<details style="flex-basis:100%;margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Show description</summary><div style="font-size:13px;color:var(--text2);margin-top:.4rem">${escapeHtml(t.viaDescription||t.styleDescription)}</div></details>`:''}
           <button class="btn btn-secondary btn-sm" onclick="openEditTrait('${t.id}')">Edit</button>
           ${traitHasNoteHistory(t.id)?`<button class="btn btn-secondary btn-sm" onclick="openTraitNoteHistory('${t.id}','${escapeHtml(t.label).replace(/'/g,"\'")}')">History</button>`:''}
           ${cat.fixed ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteTrait('${t.id}')">✕</button>`}
@@ -2115,6 +2147,10 @@ function fillTraitSuggestion(categoryId, value) {
     const descEl = document.getElementById('mgTraitDescription');
     if (descEl && !descEl.value.trim()) descEl.value = VIA_STRENGTH_DESCRIPTIONS[value];
   }
+  if (categoryId === 'conflict-style' && CONFLICT_STYLE_REFERENCE[value]) {
+    const descEl = document.getElementById('mgTraitDescription');
+    if (descEl && !descEl.value.trim()) descEl.value = CONFLICT_STYLE_REFERENCE[value];
+  }
 }
 function openAddTrait(categoryId) {
   const cat = TRAIT_CATEGORIES.find(c=>c.id===categoryId);
@@ -2135,8 +2171,8 @@ function openAddTrait(categoryId) {
     <div class="field-group"><label class="field-label">Saboteur abuse</label>
       <textarea id="mgTraitAbuse" style="min-height:70px"></textarea>
     </div>` : ''}
-    ${categoryId==='strengths' ? `
-    <div class="field-group"><label class="field-label">Description <span style="font-weight:400;color:var(--text3)">(fills in automatically for the standard 24)</span></label>
+    ${(categoryId==='strengths'||categoryId==='conflict-style') ? `
+    <div class="field-group"><label class="field-label">Description <span style="font-weight:400;color:var(--text3)">(fills in automatically for the standard suggestions)</span></label>
       <textarea id="mgTraitDescription" style="min-height:90px"></textarea>
     </div>` : ''}`;
   openModal(`Add — ${cat.label}`, body,
@@ -2164,9 +2200,9 @@ function openEditTrait(id) {
     <div class="field-group"><label class="field-label">Saboteur abuse</label>
       <textarea id="mgTraitAbuse" style="min-height:70px">${escapeHtml(t.saboteurAbuse||'')}</textarea>
     </div>` : ''}
-    ${cat.id==='strengths' ? `
-    <div class="field-group"><label class="field-label">Description <span style="font-weight:400;color:var(--text3)">(fills in automatically for the standard 24)</span></label>
-      <textarea id="mgTraitDescription" style="min-height:90px">${escapeHtml(t.viaDescription||'')}</textarea>
+    ${(cat.id==='strengths'||cat.id==='conflict-style') ? `
+    <div class="field-group"><label class="field-label">Description <span style="font-weight:400;color:var(--text3)">(fills in automatically for the standard suggestions)</span></label>
+      <textarea id="mgTraitDescription" style="min-height:90px">${escapeHtml((t.viaDescription||t.styleDescription)||'')}</textarea>
     </div>` : ''}`;
   openModal(`Edit — ${cat.label}`, body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -2183,20 +2219,21 @@ function applyTraitFromForm(categoryId, id) {
   const abuseEl = document.getElementById('mgTraitAbuse');
   const descEl = document.getElementById('mgTraitDescription');
   const extra = readTraitExtraFields(cat);
+  const descFieldName = categoryId === 'conflict-style' ? 'styleDescription' : 'viaDescription';
   let traitId = id;
   if (!id) {
     traitId = 'tr_'+uid();
     const newTrait = Object.assign({ id:traitId, category:categoryId, label, notes, importance:null }, extra);
     if (strengthEl) newTrait.sageStrength = strengthEl.value.trim();
     if (abuseEl) newTrait.saboteurAbuse = abuseEl.value.trim();
-    if (descEl) newTrait.viaDescription = descEl.value.trim();
+    if (descEl) newTrait[descFieldName] = descEl.value.trim();
     TRAITS.push(newTrait);
   } else {
     const updates = Object.assign({ label, notes }, extra);
     if (notesDetailEl) updates.notesDetail = notesDetailEl.value.trim();
     if (strengthEl) updates.sageStrength = strengthEl.value.trim();
     if (abuseEl) updates.saboteurAbuse = abuseEl.value.trim();
-    if (descEl) updates.viaDescription = descEl.value.trim();
+    if (descEl) updates[descFieldName] = descEl.value.trim();
     Object.assign(TRAITS.find(x=>x.id===id), updates);
   }
   saveTraits();
@@ -4388,6 +4425,37 @@ function buildScenarioContext() {
   });
   lines.push('');
   lines.push('When I ask a question below, please check whether any of the above Learnings are relevant to it, and say so explicitly if they are — including ones that are older or lower-priority, not just the most recent.');
+  lines.push('');
+
+  const brightSpots = load(SK.brightSpots).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  lines.push('## Bright Spots — real moments of living my values');
+  if (!brightSpots.length) lines.push('None yet.');
+  brightSpots.forEach(b => {
+    const v = VALUES.find(x=>x.id===b.valueId);
+    const meta = [fmtDate(b.date)];
+    if (v) meta.push(`value: ${v.label}`);
+    if (b.goalId) meta.push(`relates to: ${goalTitleForDisplay(b.goalId)}`);
+    lines.push(`- ${b.description} (${meta.join(', ')})`);
+  });
+  lines.push('');
+
+  const energisersDrainers = load(SK.energisersDrainers);
+  lines.push('## Energisers and Drainers — what actually gives or costs me energy');
+  if (!energisersDrainers.length) {
+    lines.push('None yet.');
+  } else {
+    const withValues = (e) => (e.valueIds||[]).map(vid => VALUES.find(v=>v.id===vid)?.label).filter(Boolean);
+    const energisers = energisersDrainers.filter(e=>e.type==='energiser');
+    const drainers = energisersDrainers.filter(e=>e.type==='drainer');
+    if (energisers.length) {
+      lines.push('Energisers:');
+      energisers.forEach(e => lines.push(`- ${e.description}${withValues(e).length?` (value: ${withValues(e).join(', ')})`:''}`));
+    }
+    if (drainers.length) {
+      lines.push('Drainers:');
+      drainers.forEach(e => lines.push(`- ${e.description}${withValues(e).length?` (value: ${withValues(e).join(', ')})`:''}`));
+    }
+  }
 
   return lines.join('\n');
 }
