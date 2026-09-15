@@ -591,21 +591,21 @@ const TRAIT_CATEGORIES = [
   { id:'strengths', label:'Strengths', suggestions:VIA_CHARACTER_STRENGTHS, extra:'priority',
     linkName:'VIA Character Strengths Survey', linkUrl:'https://www.viacharacter.org/survey/account/Register',
     guideQ:'What are my core strengths and to what extent do I feel I draw on these?' },
-  { id:'saboteurs', label:'Saboteurs', suggestions:['Judge','Stickler','Pleaser','Hyper-Achiever','Hyper-Rational','Hyper-Vigilant','Restless','Controller','Victim','Avoider'], extra:'priority-score',
-    linkName:'Saboteur Assessment', linkUrl:'https://positiveintelligence.com/saboteurs/',
-    guideQ:"What's the pattern behind my negative emotions and self-sabotaging reactions?" },
-  { id:'conflict-style', label:'Conflict management style', suggestions:['Competing','Collaborating','Compromising','Avoiding','Accommodating'], extra:'priority-score',
-    linkName:'Conflict Management Style Test (123test)', linkUrl:'https://www.123test.com/conflict-management-style-test/',
-    guideQ:'What do I actually do, instinctively, the moment a disagreement starts?' },
   { id:'personality', label:'Personality profile', suggestions:OCEAN_ORDER, extra:'percent', fixed:true,
     linkName:'OCEAN Five Factor quiz (Sounds Like Me)', linkUrl:'https://soundslikeme.co.uk/',
     guideQ:'What are the consistent traits for how I engage with the world — and how do they shape my default behaviour across situations?' },
-  { id:'idol', label:"Dominant 'idol'", suggestions:['Money','Power','Pleasure','Recognition'], extra:'priority',
-    linkName:'The Four Idols (Sahil Bloom)', linkUrl:'https://www.sahilbloom.com/newsletter/the-four-idols-money-power-pleasure-fame',
-    guideQ:'Which hidden driver (money, power, pleasure or recognition) affects me most when I think I\'m reasoning objectively?' },
+  { id:'saboteurs', label:'Saboteurs', suggestions:['Judge','Stickler','Pleaser','Hyper-Achiever','Hyper-Rational','Hyper-Vigilant','Restless','Controller','Victim','Avoider'], extra:'priority-score',
+    linkName:'Saboteur Assessment', linkUrl:'https://positiveintelligence.com/saboteurs/',
+    guideQ:"What's the pattern behind my negative emotions and self-sabotaging reactions?" },
   { id:'social-style', label:'Social style', suggestions:['Analytical','Driver','Expressive','Amiable'], extra:'none',
     linkName:'Retail Doctor Personality Quiz', linkUrl:'https://www.retaildoc.com/blog/personality-test-are-you-a-driver-expressive-analytical-or-amiable',
     guideQ:'How do I naturally come across to other people, and is that how I want to come across?' },
+  { id:'conflict-style', label:'Conflict management style', suggestions:['Competing','Collaborating','Compromising','Avoiding','Accommodating'], extra:'priority-score',
+    linkName:'Conflict Management Style Test (123test)', linkUrl:'https://www.123test.com/conflict-management-style-test/',
+    guideQ:'What do I actually do, instinctively, the moment a disagreement starts?' },
+  { id:'idol', label:"Dominant 'idol'", suggestions:['Money','Power','Pleasure','Recognition'], extra:'priority',
+    linkName:'The Four Idols (Sahil Bloom)', linkUrl:'https://www.sahilbloom.com/newsletter/the-four-idols-money-power-pleasure-fame',
+    guideQ:'Which hidden driver (money, power, pleasure or recognition) affects me most when I think I\'m reasoning objectively?' },
   { id:'leadership-type', label:'Leadership type', suggestions:CONKER_LEADERSHIP_TYPES, extra:'none',
     linkName:'Conker Inside quiz', linkUrl:'https://conkerwithus.com/conker-inside',
     guideQ:"What kind of leader am I when I'm not trying to be one, and is that the leader I want to be?" },
@@ -1555,9 +1555,16 @@ function renderValues() {
     html += `<div class="card">${valuesGuideContentHtml()}</div>
       <div class="empty-state">No values added yet. Use <strong>Manage values</strong> to add your first one.</div>`;
   } else {
-    // Snapshot — all latest scores together at a glance
+    // Snapshot — all latest scores together at a glance, grouped self-directed then
+    // other-directed (in that order within each group), matching Manage Values exactly
+    // — a flat raw-array order previously meant this grid and Manage Values could show
+    // values in visibly different sequences even though the underlying data agreed.
+    const groupedForSnapshot = [
+      ...activeValues.filter(v=>v.type==='intrinsic'),
+      ...activeValues.filter(v=>v.type==='extrinsic'),
+    ];
     html += `<div class="grid-3" style="margin-bottom:1.25rem">`;
-    activeValues.forEach(v => {
+    groupedForSnapshot.forEach(v => {
       const latest = latestCheckin(SK.valueScores, 'valueId', v.id);
       html += `<div class="card-sm" style="text-align:center">
         <div style="font-size:22px;font-weight:500;color:var(--accent)">${latest?latest.value:'—'}</div>
@@ -2057,9 +2064,25 @@ function renderTraits() {
       }).join('') : `<div class="empty-state" style="padding:1rem">Nothing added yet.</div>`}
       </div>
     </div>`;
+
+    // Energisers & Drainers sits right after Personality profile in the requested order —
+    // injected here rather than appended after the loop, since it's not itself a
+    // TRAIT_CATEGORIES entry (no third-party link, no single suggestions list).
+    if (cat.id === 'personality') {
+      html += `<div class="card">
+        <div style="font-weight:500;margin-bottom:.25rem">⚡🔋 Energisers & Drainers</div>
+        <div class="guide-q" style="font-size:13px;margin:.25rem 0 .5rem">"What activities and actions give you energy or drain you of it?"</div>
+        <div class="two-col">
+          ${energiserDrainerColumnHtml('energiser', '⚡ Energisers')}
+          ${energiserDrainerColumnHtml('drainer', '🔋 Drainers')}
+        </div>
+      </div>`;
+    }
   });
 
-  // Behavioural assessment — a single structured record, not a repeatable list
+  // Behavioural assessment — a single structured record, not a repeatable list. Rendered
+  // after the loop rather than as a TRAIT_CATEGORIES entry, so it naturally lands last,
+  // after Relationship with meaning (now the final category in the requested order).
   const hasAnyBehavioural = BEHAVIOURAL_FIELDS.some(f=>BEHAVIOURAL[f.id]) || (BEHAVIOURAL.customFields||[]).length;
   html += `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
@@ -2076,14 +2099,6 @@ function renderTraits() {
         <div style="font-size:13px;color:var(--text2)">${escapeHtml(f.value)}</div>
       </div>` : '').join('') : '<div class="empty-state" style="padding:1rem">Not recorded yet.</div>'}
     ${BEHAVIOURAL.updatedDate?`<div class="updated-row">Last updated: ${fmtDate(BEHAVIOURAL.updatedDate)} (${timeSince(BEHAVIOURAL.updatedDate)} ago)</div>`:''}
-  </div>`;
-
-  html += `
-  <div class="section-label" style="margin-top:1.25rem">⚡🔋 Energisers & Drainers</div>
-  <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Actions and activities that give you energy, or drain it — noticing the contrast, not grading either side. Not yet linked into Will, Skill & Connectivity structurally; it's still an open question which dimension(s) this belongs to long-term.</p>
-  <div class="two-col">
-    ${energiserDrainerColumnHtml('energiser', '⚡ Energisers')}
-    ${energiserDrainerColumnHtml('drainer', '🔋 Drainers')}
   </div>`;
 
   document.getElementById('traits').innerHTML = html;
