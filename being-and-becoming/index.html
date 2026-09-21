@@ -209,6 +209,11 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
 .score-val-sm{font-size:14px;font-weight:500}
 .flag-very{background:var(--accent);color:#fff;border-color:var(--accent)}
 .flag-important{background:var(--warm-lt);color:var(--warm);border-color:var(--warm)}
+.focus-star{background:transparent;border:none;cursor:pointer;font-size:17px;line-height:1;
+  color:var(--text3);padding:2px 6px 2px 0;flex-shrink:0}
+.focus-star.on{color:var(--accent)}
+.focus-star:hover{color:var(--accent)}
+.focus-highlight{background:var(--accent-lt);border-radius:var(--r);margin:0 -8px;padding-left:8px;padding-right:8px}
 
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn{border:none;border-radius:var(--r);padding:9px 18px;font-size:14px;
@@ -658,6 +663,7 @@ const SK = {
   shareTrendWill:'bb_share_trend_will', shareTrendSkill:'bb_share_trend_skill', shareTrendConnectivity:'bb_share_trend_connectivity',
   energisersDrainers:'bb_energisers_drainers',
   displayName:'bb_display_name',
+  focusItems:'bb_focus_items', focusHistory:'bb_focus_history',
 };
 
 function load(key) { try { return JSON.parse(wsGet(key)) || []; } catch(e) { return []; } }
@@ -1337,6 +1343,75 @@ function renderInstructions() {
     </div>`;
 }
 
+// ── Current focus — a lightweight, generic prioritise/star mechanism ──────
+// Deliberately not a field bolted onto each item's own record (value/goal/trait/
+// skill/energiser/action/learning/bright spot): one small store keyed by {type,id}
+// covers every content type from a single place, survives the underlying item
+// being deleted (for history purposes), and needs no schema change scattered
+// across half a dozen different data models. Only used on the Snapshot page.
+const FOCUS_TYPE_LABELS = {
+  value:'Value', goal:'Goal', trait:'Quality & Style', skill:'Skill',
+  energiser:'Energiser', drainer:'Drainer', action:'Action', learning:'Learning', brightSpot:'Bright Spot',
+};
+function focusItemLabel(type, id) {
+  switch (type) {
+    case 'value': return VALUES.find(v=>v.id===id)?.label || '';
+    case 'goal': return findGoal(id)?.title || '';
+    case 'trait': { const t = TRAITS.find(x=>x.id===id); return t ? (t.label || (t.category==='meaning' ? 'Meaning in Life Questionnaire' : '')) : ''; }
+    case 'skill': return SKILLS.find(s=>s.id===id)?.label || '';
+    case 'energiser': case 'drainer': return ENERGISERS_DRAINERS.find(e=>e.id===id)?.description || '';
+    case 'action': return load(SK.actions).find(a=>a.id===id)?.description || '';
+    case 'learning': return load(SK.learnings).find(l=>l.id===id)?.description || '';
+    case 'brightSpot': return load(SK.brightSpots).find(b=>b.id===id)?.description || '';
+    default: return '';
+  }
+}
+function isFocused(type, id) {
+  return load(SK.focusItems).some(f=>f.type===type && f.id===id);
+}
+function toggleFocus(type, id) {
+  const items = load(SK.focusItems);
+  const idx = items.findIndex(f=>f.type===type && f.id===id);
+  const history = load(SK.focusHistory);
+  const label = focusItemLabel(type, id);
+  if (idx>-1) {
+    items.splice(idx,1);
+    history.push({ id:uid(), type, itemId:id, label, action:'deprioritised', date:today() });
+  } else {
+    items.push({ type, id });
+    history.push({ id:uid(), type, itemId:id, label, action:'prioritised', date:today() });
+  }
+  save(SK.focusItems, items);
+  save(SK.focusHistory, history);
+  renderSnapshot();
+}
+function focusStarHtml(type, id) {
+  const on = isFocused(type, id);
+  return `<button class="focus-star${on?' on':''}" title="${on?'Remove from current focus':'Mark as current focus'}" onclick="event.stopPropagation();toggleFocus('${type}','${id}')">${on?'★':'☆'}</button>`;
+}
+function openFocusHistory() {
+  const history = [...load(SK.focusHistory)].sort((a,b)=>b.date.localeCompare(a.date));
+  const body = history.length ? history.map(h => `
+    <div class="score-row">
+      <span class="score-name">${escapeHtml(h.label||'(deleted item)')} <span style="color:var(--text3);font-size:11px">· ${FOCUS_TYPE_LABELS[h.type]||h.type}</span></span>
+      <span style="font-size:12px;color:${h.action==='prioritised'?'var(--accent)':'var(--text3)'};white-space:nowrap">${h.action==='prioritised'?'★ Starred':'☆ Unstarred'} · ${fmtDate(h.date)}</span>
+    </div>`).join('') : '<div class="empty-state">No focus changes yet — star anything on the Snapshot page to start building this up.</div>';
+  openModal('Focus history', body, `<button class="btn btn-secondary" onclick="closeModal()">Close</button>`);
+}
+function currentFocusBoxHtml() {
+  const stored = load(SK.focusItems);
+  const rows = stored.map(f => ({ ...f, label: focusItemLabel(f.type, f.id) })).filter(f=>f.label);
+  if (rows.length !== stored.length) save(SK.focusItems, rows.map(({type,id})=>({type,id}))); // quietly drop stars on since-deleted items
+  return `<div class="card" style="border-color:var(--accent);background:var(--accent-lt)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:.5rem">
+      <div style="font-weight:500">★ Current focus</div>
+      <button class="btn btn-secondary btn-sm" onclick="openFocusHistory()">Focus history</button>
+    </div>
+    ${rows.length ? rows.map(f=>`<div class="score-row">${focusStarHtml(f.type,f.id)}<span class="score-name">${escapeHtml(f.label)} <span style="color:var(--text3);font-size:11px">· ${FOCUS_TYPE_LABELS[f.type]||''}</span></span></div>`).join('')
+      : '<div class="empty-state" style="padding:1rem">Nothing starred yet — tap the ☆ next to anything below to mark it as where your focus should currently be.</div>'}
+  </div>`;
+}
+
 function renderSnapshot() {
   const name = getDisplayName();
 
@@ -1351,100 +1426,143 @@ function renderSnapshot() {
     </div>`;
   };
 
-  // Values average
-  const valueLatests = VALUES.map(v=>latestCheckin(SK.valueScores,'valueId',v.id)).filter(Boolean);
-  const valuesAvg = valueLatests.length ? valueLatests.reduce((a,b)=>a+b.value,0)/valueLatests.length : null;
-
-  // Actions
-  const allActions = load(SK.actions);
-  const openActions = allActions.filter(a=>!a.completed);
-  const completedActions = allActions.filter(a=>a.completed);
+  // Values at a glance — same self-directed-then-other-directed ordering as the Values page summary
+  const activeValues = VALUES.filter(v=>!v.archived);
+  const groupedValues = [...activeValues.filter(v=>v.type==='intrinsic'), ...activeValues.filter(v=>v.type==='extrinsic')];
+  const valueRows = groupedValues.map(v => {
+    const latest = latestCheckin(SK.valueScores, 'valueId', v.id);
+    return `<div class="score-row${isFocused('value',v.id)?' focus-highlight':''}">${focusStarHtml('value',v.id)}
+      <span class="score-name">${escapeHtml(v.label)}</span>
+      <span class="score-val-sm" style="color:var(--accent)">${latest?latest.value:'—'}</span>
+    </div>`;
+  }).join('');
 
   // Goals at a glance
   const goalRows = GOALS.map(g => {
     const disp = goalCurrentDisplay(g);
-    return `<div class="score-row">
+    return `<div class="score-row${isFocused('goal',g.id)?' focus-highlight':''}">${focusStarHtml('goal',g.id)}
       <span class="score-name">${escapeHtml(g.title)}</span>
       <span class="score-val-sm" style="color:var(--accent)">${disp.value!=null?disp.value:'—'}</span>
     </div>`;
   }).join('');
+  const dueGoals = goalsCadenceDue();
 
-  // Most resonant traits right now
-  const veryImportant = TRAITS.filter(t=>t.importance==='very');
+  // Qualities & Styles at a glance — "Very important" traits (labelled with their category
+  // for context) plus "High" priority Energisers and Drainers
+  const veryImportantTraits = TRAITS.filter(t=>t.importance==='very');
+  const traitRows = veryImportantTraits.map(t => {
+    const cat = TRAIT_CATEGORIES.find(c=>c.id===t.category);
+    const label = t.label || (t.category==='meaning' ? 'Meaning in Life Questionnaire' : '');
+    return `<div class="score-row${isFocused('trait',t.id)?' focus-highlight':''}">${focusStarHtml('trait',t.id)}
+      <span class="score-name">${escapeHtml(label)} <span style="color:var(--text3);font-size:11px">· ${cat?escapeHtml(cat.label):''}</span></span>
+    </div>`;
+  }).join('');
+  const highEnergisersDrainers = ENERGISERS_DRAINERS.filter(e=>e.priority==='High');
+  const edRows = highEnergisersDrainers.map(e => `<div class="score-row${isFocused(e.type,e.id)?' focus-highlight':''}">${focusStarHtml(e.type,e.id)}
+      <span class="score-name">${e.type==='energiser'?'⚡':'🔋'} ${escapeHtml(e.description)} <span style="color:var(--text3);font-size:11px">· ${e.type==='energiser'?'Energiser':'Drainer'}</span></span>
+    </div>`).join('');
+
+  // Will, Skill & Connectivity — overall levels, plus any skill flagged Very important
+  const veryImportantSkills = SKILLS.filter(sk=>sk.importance==='very');
+  const skillRows = veryImportantSkills.map(sk => {
+    const latestSk = latestCheckin(SK.skillCheckins, 'skillId', sk.id);
+    return `<div class="score-row${isFocused('skill',sk.id)?' focus-highlight':''}">${focusStarHtml('skill',sk.id)}
+      <span class="score-name">${escapeHtml(sk.label)}</span>
+      <span class="score-val-sm" style="color:var(--accent)">${latestSk?latestSk.value:'—'}</span>
+    </div>`;
+  }).join('');
 
   // Most recent learning
   const learnings = load(SK.learnings).sort((a,b)=>b.date.localeCompare(a.date));
   const latestLearning = learnings[0];
 
-  // Most recent bright spot
+  // Three most recent bright spots
   const brightSpots = load(SK.brightSpots).sort((a,b)=>b.date.localeCompare(a.date));
-  const latestBrightSpot = brightSpots[0];
-  const latestBrightSpotValue = latestBrightSpot ? VALUES.find(v=>v.id===latestBrightSpot.valueId) : null;
+  const recentBrightSpots = brightSpots.slice(0,3);
 
-  // Top-ranked tactic per goal (if any)
-  const tacticHighlights = GOALS.map(g => {
-    const criteria = RELEVANCE_CRITERIA.filter(r=>r.goalId===g.id);
-    const tactics = load(SK.tactics).filter(t=>t.goalId===g.id)
-      .map(t => ({ ...t, avg: Object.values(t.scores).length ? Object.values(t.scores).reduce((x,y)=>x+y,0)/Object.values(t.scores).length : 0 }))
-      .sort((a,b)=>b.avg-a.avg);
-    return tactics.length ? { goal:g.title, top:tactics[0] } : null;
-  }).filter(Boolean);
+  // Actions — three most recently added, unless any open action carries a due date,
+  // in which case switch to showing what's overdue or due in the next 14 days instead
+  const openActionsAll = load(SK.actions).filter(a=>!a.completed);
+  const actionsWithDeadlines = openActionsAll.filter(a=>a.dueDate);
+  const todayStr = today();
+  let actionsBoxTitle, actionsGlance;
+  if (actionsWithDeadlines.length) {
+    const cutoff = new Date(todayStr); cutoff.setDate(cutoff.getDate()+14);
+    const cutoffStr = cutoff.toISOString().slice(0,10);
+    actionsGlance = actionsWithDeadlines.filter(a=>a.dueDate<=cutoffStr).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+    actionsBoxTitle = 'Actions — overdue & due soon';
+  } else {
+    actionsGlance = [...openActionsAll].sort((a,b)=>(b.createdDate||'').localeCompare(a.createdDate||'')).slice(0,3);
+    actionsBoxTitle = 'Recently added actions';
+  }
+  const actionRows = actionsGlance.map(a => {
+    const isOverdue = a.dueDate && a.dueDate < todayStr;
+    return `<div class="score-row${isFocused('action',a.id)?' focus-highlight':''}">${focusStarHtml('action',a.id)}
+      <div style="flex:1">
+        <div style="font-size:13px;color:var(--text2)">${escapeHtml(a.description)}</div>
+        <div class="updated-row" style="margin-top:0">${a.dueDate?`${isOverdue?'<span style="color:#A8593F">Overdue</span> — ':''}Due ${fmtDate(a.dueDate)}`:`Added ${timeSince(a.createdDate)} ago`}</div>
+      </div>
+    </div>`;
+  }).join('');
 
   document.getElementById('snapshot').innerHTML = `
     <div class="section-head">
       <div><div class="eyebrow">Summary</div><div class="section-title">Snapshot${name?` — ${escapeHtml(name)}`:''}</div>
-        <div class="section-sub">Everything, at a glance, as of ${fmtDate(today())}</div></div>
+        <div class="guide-q">"What's your current focus?"</div></div>
     </div>
 
+    ${currentFocusBoxHtml()}
+
+    <div class="section-label" style="margin-top:1.25rem">Values at a glance</div>
+    <div class="guide-q" style="font-size:14px;margin:.25rem 0 .5rem">"On which values do I want to focus?"</div>
+    <div class="card">
+      ${groupedValues.length ? valueRows : '<div class="empty-state" style="padding:1rem">No values added yet.</div>'}
+    </div>
+
+    <div class="section-label" style="margin-top:1.25rem">Goals at a glance</div>
+    <div class="guide-q" style="font-size:14px;margin:.25rem 0 .5rem">"On which goals do I want to focus?"</div>
+    <div class="card">
+      ${GOALS.length ? goalRows : '<div class="empty-state" style="padding:1rem">No goals yet.</div>'}
+      ${dueGoals.length ? `<div class="section-label" style="margin-top:.75rem">Worth revisiting</div>
+        ${dueGoals.map(g => `<div class="score-row"><span class="score-name">${escapeHtml(g.title)}</span><span style="font-size:12px;color:var(--text3)">${effectiveCadence(g)} rhythm</span></div>`).join('')}` : ''}
+    </div>
+
+    <div class="section-label" style="margin-top:1.25rem">Qualities & Styles at a glance</div>
+    <div class="guide-q" style="font-size:14px;margin:.25rem 0 .5rem">"What's resonating?"</div>
+    <div class="card">
+      ${veryImportantTraits.length ? traitRows : '<div class="empty-state" style="padding:1rem">Nothing flagged "Very important" yet.</div>'}
+      ${highEnergisersDrainers.length ? `<div class="section-label" style="margin-top:.75rem">High energy impact</div>${edRows}` : ''}
+    </div>
+
+    <div class="section-label" style="margin-top:1.25rem">Will, Skill & Connectivity</div>
+    <div class="guide-q" style="font-size:14px;margin:.25rem 0 .5rem">"What are my levels?"</div>
     <div class="grid-3" style="margin-bottom:.75rem">
       ${dimCard('skill','Skill')}
       ${dimCard('will','Will')}
       ${dimCard('connectivity','Connectivity')}
     </div>
-    <div class="grid-3" style="margin-bottom:1.25rem">
-      <div class="card-sm" style="text-align:center">
-        <div style="font-size:26px;font-weight:500;color:var(--accent)">${valuesAvg!=null?valuesAvg.toFixed(1):'—'}</div>
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Values avg</div>
-      </div>
-      <div class="card-sm" style="text-align:center">
-        <div style="font-size:26px;font-weight:500;color:var(--accent)">${openActions.length}</div>
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Open actions</div>
-      </div>
-      <div class="card-sm" style="text-align:center">
-        <div style="font-size:26px;font-weight:500;color:var(--accent)">${completedActions.length}</div>
-        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Completed</div>
-      </div>
+    ${veryImportantSkills.length ? `<div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">Very important skills</div>
+      ${skillRows}
+    </div>` : ''}
+
+    <div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">Most recent learning</div>
+      ${latestLearning ? `<div class="score-row${isFocused('learning',latestLearning.id)?' focus-highlight':''}">${focusStarHtml('learning',latestLearning.id)}<div style="flex:1"><div style="font-size:13px;color:var(--text2)">${escapeHtml(latestLearning.description)}</div><div class="updated-row" style="margin-top:0">${fmtDate(latestLearning.date)}</div></div></div>` : '<div class="empty-state" style="padding:1rem">None recorded yet.</div>'}
     </div>
 
     <div class="card">
-      <div style="font-weight:500;margin-bottom:.5rem">Goals at a glance</div>
-      ${GOALS.length ? goalRows : '<div class="empty-state" style="padding:1rem">No goals yet.</div>'}
+      <div style="font-weight:500;margin-bottom:.5rem">🌟 Recent bright spots</div>
+      ${recentBrightSpots.length ? recentBrightSpots.map(bs => {
+        const val = VALUES.find(v=>v.id===bs.valueId);
+        return `<div class="score-row${isFocused('brightSpot',bs.id)?' focus-highlight':''}">${focusStarHtml('brightSpot',bs.id)}<div style="flex:1"><div style="font-size:13px;color:var(--text2)">${escapeHtml(bs.description)}</div><div class="updated-row" style="margin-top:0">${fmtDate(bs.date)}${val?` · ${escapeHtml(val.label)}`:''}</div></div></div>`;
+      }).join('') : '<div class="empty-state" style="padding:1rem">None recorded yet — notice one on the Values tab.</div>'}
     </div>
 
-    ${goalsCadenceDue().length ? `<div class="card">
-      <div style="font-weight:500;margin-bottom:.5rem">Goals worth revisiting</div>
-      ${goalsCadenceDue().map(g => `<div class="score-row"><span class="score-name">${escapeHtml(g.title)}</span><span style="font-size:12px;color:var(--text3)">${effectiveCadence(g)} rhythm</span></div>`).join('')}
-    </div>` : ''}
-
-    <div class="three-col">
-      <div class="card">
-        <div style="font-weight:500;margin-bottom:.5rem">What currently resonates most</div>
-        ${veryImportant.length ? `<div class="chip-row">${veryImportant.map(t=>`<span class="chip">${escapeHtml(t.label)}</span>`).join('')}</div>` : '<div class="empty-state" style="padding:1rem">Nothing flagged as "very important" yet.</div>'}
-      </div>
-      <div class="card">
-        <div style="font-weight:500;margin-bottom:.5rem">Most recent learning</div>
-        ${latestLearning ? `<div style="font-size:13px;color:var(--text2)">${escapeHtml(latestLearning.description)}</div><div class="updated-row">${fmtDate(latestLearning.date)}</div>` : '<div class="empty-state" style="padding:1rem">None recorded yet.</div>'}
-      </div>
-      <div class="card">
-        <div style="font-weight:500;margin-bottom:.5rem">🌟 A recent bright spot</div>
-        ${latestBrightSpot ? `<div style="font-size:13px;color:var(--text2)">${escapeHtml(latestBrightSpot.description)}</div><div class="updated-row">${fmtDate(latestBrightSpot.date)}${latestBrightSpotValue?` · ${escapeHtml(latestBrightSpotValue.label)}`:''}</div>` : '<div class="empty-state" style="padding:1rem">None recorded yet — notice one on the Values tab.</div>'}
-      </div>
+    <div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">${actionsBoxTitle}</div>
+      ${actionsGlance.length ? actionRows : '<div class="empty-state" style="padding:1rem">No open actions yet.</div>'}
     </div>
-
-    ${tacticHighlights.length ? `<div class="card">
-      <div style="font-weight:500;margin-bottom:.5rem">Best-aligned tactic per goal</div>
-      ${tacticHighlights.map(h => `<div class="score-row"><span class="score-name">${escapeHtml(h.goal)}</span><span style="font-size:13px">${escapeHtml(h.top.title)} <span class="score-val-sm" style="color:var(--accent)">${h.top.avg.toFixed(1)}</span></span></div>`).join('')}
-    </div>` : ''}
 
     <div class="section-label" style="margin-top:1.25rem">On-demand snapshots</div>
     <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Turn everything above into something for someone — or something — else to read.</p>
@@ -3174,11 +3292,14 @@ function renderWSC() {
       ${SKILLS.length ? SKILLS.map(sk => {
         const latestSk = latestCheckin(SK.skillCheckins, 'skillId', sk.id);
         const sets = skillSetsForLabel(sk.label);
-        return `<div class="manage-row">
+        return `<div class="manage-row" style="flex-wrap:wrap">
           <div style="flex:1;min-width:140px">
             <div class="manage-row-title">${escapeHtml(sk.label)}</div>
             <div class="manage-row-meta">${sets.length?escapeHtml(sets.join(', ')):'Custom skill'}</div>
           </div>
+          <span class="tag ${sk.importance==='very'?'flag-very':sk.importance==='important'?'flag-important':''}" style="cursor:pointer" onclick="cycleSkillImportance('${sk.id}')">
+            ${sk.importance==='very'?'Very important':sk.importance==='important'?'Important':'Tap to flag'}
+          </span>
           ${latestSk?`<span style="font-size:14px;font-weight:500;color:var(--accent)">${latestSk.value}</span>`:'<span style="font-size:12px;color:var(--text3)">Not rated yet</span>'}
           <button class="btn btn-secondary btn-sm" onclick="openSkillCheckin('${sk.id}')">Check in</button>
           ${latestSk?`<button class="btn btn-secondary btn-sm" onclick="openCheckinHistory('${SK.skillCheckins}','skillId','${sk.id}','${escapeHtml(sk.label).replace(/'/g,"\'")}')">History</button>`:''}
@@ -3325,6 +3446,12 @@ function deleteSkillMeta(id) {
   SKILLS = SKILLS.filter(x=>x.id!==id);
   saveSkillsList();
   openManageSkills();
+}
+function cycleSkillImportance(id) {
+  const sk = SKILLS.find(x=>x.id===id); if (!sk) return;
+  sk.importance = (sk.importance == null) ? 'important' : sk.importance === 'important' ? 'very' : null;
+  saveSkillsList();
+  renderWSC();
 }
 function quickAddSkill(label) {
   if (SKILLS.some(s=>s.label.toLowerCase()===label.toLowerCase())) { alert(`"${label}" is already on your skills list.`); return; }
@@ -4888,6 +5015,12 @@ function exportExcel() {
   ]));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(scRows), 'Scratchpad');
 
+  const fhRows = [['Date','Item','Type','Action']];
+  [...load(SK.focusHistory)].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(h => fhRows.push([
+    h.date, h.label||'', FOCUS_TYPE_LABELS[h.type]||h.type, h.action==='prioritised'?'Starred':'Unstarred',
+  ]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(fhRows), 'Focus history');
+
   XLSX.writeFile(wb, `BeingAndBecoming_${safeWorkspaceNameForFilename()}_${today()}.xlsx`);
 }
 
@@ -4900,6 +5033,7 @@ function buildBackupData() {
     skillCheckins:load(SK.skillCheckins), relevanceScores:load(SK.relevanceScores), tactics:load(SK.tactics),
     actions:load(SK.actions), learnings:load(SK.learnings), themes:load(SK.themes), brightSpots:load(SK.brightSpots), displayName:getDisplayName(), lastSharedDate:getLastSharedDate(), goalsGroupCadence:getGoalsGroupCadence(), shareTrendWill:wsGet(SK.shareTrendWill)||'', shareTrendSkill:wsGet(SK.shareTrendSkill)||'', shareTrendConnectivity:wsGet(SK.shareTrendConnectivity)||'',
     scratchpad:load(SK.scratchpad), scratchpadCategories:SCRATCHPAD_CATEGORIES,
+    focusItems:load(SK.focusItems), focusHistory:load(SK.focusHistory),
   };
 }
 // Blob-based download — more reliable across browsers than the older data: URI + click()
@@ -4987,6 +5121,8 @@ function applyRestoreData(data) {
   if (data.shareTrendWill!=null) wsSet(SK.shareTrendWill, data.shareTrendWill);
   if (data.shareTrendSkill!=null) wsSet(SK.shareTrendSkill, data.shareTrendSkill);
   if (data.shareTrendConnectivity!=null) wsSet(SK.shareTrendConnectivity, data.shareTrendConnectivity);
+  if (data.focusItems) save(SK.focusItems, data.focusItems);
+  if (data.focusHistory) save(SK.focusHistory, data.focusHistory);
 }
 function importJSON(input) {
   const file = input.files[0]; if (!file) return;
@@ -5050,6 +5186,7 @@ function snapshotWorkspaceData(wsId) {
     skillCheckins: load(SK.skillCheckins), relevanceScores: load(SK.relevanceScores), tactics: load(SK.tactics),
     actions: load(SK.actions), learnings: load(SK.learnings), themes: load(SK.themes), brightSpots: load(SK.brightSpots), displayName: wsGet(SK.displayName) || '', lastSharedDate: wsGet(SK.lastSharedDate) || '', goalsGroupCadence: wsGet(SK.goalsGroupCadence) || '', shareTrendWill: wsGet(SK.shareTrendWill) || '', shareTrendSkill: wsGet(SK.shareTrendSkill) || '', shareTrendConnectivity: wsGet(SK.shareTrendConnectivity) || '',
     scratchpad: load(SK.scratchpad), scratchpadCategories,
+    focusItems: load(SK.focusItems), focusHistory: load(SK.focusHistory),
   };
   ACTIVE_WORKSPACE = prev;
   return data;
@@ -5085,6 +5222,8 @@ function restoreWorkspaceData(wsId, data) {
   if (data.shareTrendWill!=null) wsSet(SK.shareTrendWill, data.shareTrendWill);
   if (data.shareTrendSkill!=null) wsSet(SK.shareTrendSkill, data.shareTrendSkill);
   if (data.shareTrendConnectivity!=null) wsSet(SK.shareTrendConnectivity, data.shareTrendConnectivity);
+  if (data.focusItems) save(SK.focusItems, data.focusItems);
+  if (data.focusHistory) save(SK.focusHistory, data.focusHistory);
   wsSet('bb_seeded','1'); // don't let demo seeding overwrite restored data next time this workspace loads
   ACTIVE_WORKSPACE = prev;
 }
