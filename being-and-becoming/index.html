@@ -1516,7 +1516,7 @@ function renderSnapshot() {
     <div class="section-label" style="margin-top:1.25rem">Values at a glance</div>
     <div class="guide-q" style="font-size:14px;margin:.25rem 0 .5rem">"On which values do I want to focus?"</div>
     <div class="card">
-      ${groupedValues.length ? valueRows : '<div class="empty-state" style="padding:1rem">No values added yet.</div>'}
+      ${groupedValues.length ? `<div class="two-col" style="column-gap:1.5rem;row-gap:0">${valueRows}</div>` : '<div class="empty-state" style="padding:1rem">No values added yet.</div>'}
     </div>
 
     <div class="section-label" style="margin-top:1.25rem">Goals at a glance</div>
