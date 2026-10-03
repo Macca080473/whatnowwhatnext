@@ -321,6 +321,11 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   border-left:3px solid var(--accent);background:var(--accent-lt);color:var(--accent-dk);margin:1rem 0}
 .badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
   border-radius:50%;background:var(--warm);color:#fff;font-size:10px;font-weight:600}
+.feedback-fab{position:fixed;bottom:20px;right:20px;z-index:150;width:52px;height:52px;border-radius:50%;
+  background:var(--accent);color:#fff;border:none;font-size:22px;line-height:1;cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
+.feedback-fab .badge{position:absolute;top:-4px;right:-4px}
+@media print{.feedback-fab{display:none}}
 </style>
 </head>
 <body>
@@ -337,9 +342,14 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <select id="workspaceSwitcher" style="width:auto;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3);font-size:13px;padding:6px 10px"></select>
+    <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff;position:relative" onclick="openFeedbackForm()">Feedback<span id="feedbackHdrBadge" class="badge hidden" style="position:absolute;top:-6px;right:-6px"></span></button>
     <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff" onclick="openManageWorkspaces()">Manage</button>
   </div>
 </header>
+
+<button id="feedbackFab" class="feedback-fab" onclick="openFeedbackForm()" title="Give feedback">
+  💬<span id="feedbackFabBadge" class="badge hidden"></span>
+</button>
 
 <nav class="nav">
   <div class="nav-tabs-row" id="navTabsRow">
@@ -1216,6 +1226,7 @@ function renderView(id) {
   if (renders[id]) renders[id]();
   applyTabVisibility();
   updateActionBadge();
+  updateFeedbackBadges();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -5881,6 +5892,165 @@ function seedDemoData() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// FEEDBACK — a lightweight in-app channel for testers to log bugs/UX notes/
+// improvement ideas and get them to Iain, without needing a backend (there isn't
+// one). Deliberately global, not per-workspace (uses raw localStorage, like the
+// workspace list itself) — feedback is about the TOOL, not a person's reflection
+// data, so it survives a workspace being reset or deleted, and isn't lost if
+// someone's testing in the Example workspace rather than their own.
+// Since there's no server to send mail from, "send" means: compile everything not
+// yet sent into a clean summary, copy it to the clipboard, and open the person's
+// own email client via a mailto: link pre-addressed to Iain — they paste and hit
+// send themselves. Marking entries "sent" happens the moment that happens (not
+// after a separate confirmation) — simplest for a small group of testers, and
+// nothing is destructive: unsent/sent is just a flag on each entry, so a forgotten
+// send can always be included again from Manage Feedback.
+const FEEDBACK_KEY = 'bb_feedback_log';
+const FEEDBACK_NAME_KEY = 'bb_feedback_name';
+const FEEDBACK_EMAIL_TO = 'hello@whatnowwhatnext.co.uk';
+const FEEDBACK_SECTIONS = [
+  { id:'home', label:'Home' },
+  { id:'snapshot', label:'Snapshot' },
+  { id:'values', label:'Values' },
+  { id:'goals', label:'Goals' },
+  { id:'traits', label:'Qualities & Styles' },
+  { id:'wsc', label:'Will, Skill & Connectivity' },
+  { id:'scratchpad', label:'Scratchpad' },
+  { id:'actions', label:'Actions' },
+  { id:'learnings', label:'Learnings' },
+  { id:'workspaces', label:'Workspaces / switching' },
+  { id:'general', label:'General / something else' },
+];
+const FEEDBACK_TYPES = [
+  { id:'bug', label:'Bug / something broken' },
+  { id:'ux', label:'UX / usability — confusing or awkward' },
+  { id:'technical', label:'Technical issue — performance, data, crashes' },
+  { id:'improvement', label:'Improvement idea / suggestion' },
+];
+function feedbackSectionForView(view) {
+  return FEEDBACK_SECTIONS.some(s=>s.id===view) ? view : 'general';
+}
+function loadFeedback() { try { return JSON.parse(localStorage.getItem(FEEDBACK_KEY)) || []; } catch(e) { return []; } }
+function saveFeedback(list) { try { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(list)); } catch(e) {} }
+function feedbackName() { try { return localStorage.getItem(FEEDBACK_NAME_KEY) || ''; } catch(e) { return ''; } }
+function setFeedbackName(name) { try { localStorage.setItem(FEEDBACK_NAME_KEY, name); } catch(e) {} }
+function unsentFeedbackCount() { return loadFeedback().filter(f=>!f.sentDate).length; }
+function updateFeedbackBadges() {
+  const n = unsentFeedbackCount();
+  ['feedbackFabBadge','feedbackHdrBadge'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = n; el.classList.toggle('hidden', n===0); }
+  });
+}
+function openFeedbackForm(editId) {
+  const f = editId ? loadFeedback().find(x=>x.id===editId) : null;
+  const defaultSection = f ? f.section : feedbackSectionForView(currentView);
+  const body = `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Spotted something off, or have an idea for how this could work better? This goes straight into a log you can email to Iain whenever you're ready — nothing is sent automatically.</p>
+    <div class="field-group"><label class="field-label">Which part of the tool?</label>
+      <select id="fbSection">${FEEDBACK_SECTIONS.map(s=>`<option value="${s.id}" ${defaultSection===s.id?'selected':''}>${escapeHtml(s.label)}</option>`).join('')}</select>
+    </div>
+    <div class="field-group"><label class="field-label">What kind of feedback?</label>
+      <select id="fbType">${FEEDBACK_TYPES.map(t=>`<option value="${t.id}" ${f?.type===t.id?'selected':''}>${escapeHtml(t.label)}</option>`).join('')}</select>
+    </div>
+    <div class="field-group"><label class="field-label">What's currently happening?</label>
+      <textarea id="fbCurrent" placeholder="What you saw, or what's not working">${f?escapeHtml(f.current||''):''}</textarea>
+    </div>
+    <div class="field-group"><label class="field-label">What would you want instead? <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <textarea id="fbRequested" placeholder="Optional — skip if you're just flagging something">${f?escapeHtml(f.requested||''):''}</textarea>
+    </div>
+    <div class="field-group"><label class="field-label">How important does this feel? <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <select id="fbImportance">${IMPORTANCE_LEVELS.map(lvl=>`<option value="${lvl||''}" ${(f?.importance||null)===lvl?'selected':''}>${importanceLabel(lvl)}</option>`).join('')}</select>
+    </div>
+    <div class="field-group"><label class="field-label">Your name <span style="font-weight:400;color:var(--text3)">(optional — so Iain knows who to follow up with)</span></label>
+      <input type="text" id="fbName" value="${escapeHtml(f?.name ?? feedbackName())}" placeholder="e.g. Sam">
+    </div>
+    ${f && f.sentDate ? `<p style="font-size:12px;color:var(--text3)">Already included in an email sent ${fmtDate(f.sentDate)}. Saving changes here won't resend it automatically — use Manage Feedback if you want it re-included.</p>` : ''}
+    <button class="btn-add-block" onclick="openManageFeedback()">View / manage all feedback →</button>`;
+  openModal(f ? 'Edit Feedback' : 'Give Feedback', body,
+    `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+     <button class="btn btn-primary" onclick="saveFeedbackEntry('${editId||''}')">Save</button>`);
+}
+function saveFeedbackEntry(editId) {
+  const current = document.getElementById('fbCurrent').value.trim();
+  if (!current) { alert("Please describe what's currently happening first."); return; }
+  const name = document.getElementById('fbName').value.trim();
+  setFeedbackName(name);
+  const entry = {
+    section: document.getElementById('fbSection').value,
+    type: document.getElementById('fbType').value,
+    current,
+    requested: document.getElementById('fbRequested').value.trim(),
+    importance: document.getElementById('fbImportance').value || null,
+    name,
+  };
+  const list = loadFeedback();
+  if (editId) {
+    Object.assign(list.find(x=>x.id===editId), entry);
+  } else {
+    list.push(Object.assign({ id:uid(), date:today(), workspace: (listWorkspaces().find(w=>w.id===ACTIVE_WORKSPACE)||{}).name || '', sentDate:null }, entry));
+  }
+  saveFeedback(list);
+  updateFeedbackBadges();
+  closeModal();
+  alert('Thanks — saved. Use Manage Feedback (or the feedback button again) whenever you want to email this through.');
+}
+function deleteFeedbackEntry(id) {
+  if (!confirm('Delete this feedback entry? This cannot be undone.')) return;
+  saveFeedback(loadFeedback().filter(x=>x.id!==id));
+  updateFeedbackBadges();
+  openManageFeedback();
+}
+function feedbackTypeLabel(id) { return (FEEDBACK_TYPES.find(t=>t.id===id)||{}).label || id; }
+function feedbackSectionLabel(id) { return (FEEDBACK_SECTIONS.find(s=>s.id===id)||{}).label || id; }
+function openManageFeedback() {
+  const list = loadFeedback().slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const unsent = list.filter(f=>!f.sentDate).length;
+  const body = `
+    <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">${unsent ? `${unsent} item${unsent===1?'':'s'} not yet emailed.` : 'Everything here has already been emailed.'}</p>
+    <button class="btn btn-primary btn-sm" style="margin-bottom:1rem" onclick="prepareFeedbackEmail()" ${unsent?'':'disabled'}>✉ Prepare email to Iain (${unsent} new)</button>
+    <div class="divider"></div>
+    ${list.length ? list.map(f => `
+      <div class="manage-row" style="align-items:flex-start">
+        <div style="flex:1">
+          <div class="manage-row-title">${escapeHtml(feedbackSectionLabel(f.section))} — ${escapeHtml(feedbackTypeLabel(f.type))}</div>
+          <div class="manage-row-meta" style="margin-top:2px">${escapeHtml(f.current)}</div>
+          ${f.requested?`<div class="manage-row-meta" style="margin-top:2px;color:var(--text3)">→ ${escapeHtml(f.requested)}</div>`:''}
+          <div class="manage-row-meta" style="margin-top:2px;color:var(--text3)">${fmtDate(f.date)}${f.name?` · ${escapeHtml(f.name)}`:''}${f.importance?` · ${importanceLabel(f.importance)}`:''} · ${f.sentDate ? `sent ${fmtDate(f.sentDate)}` : 'not sent yet'}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="openFeedbackForm('${f.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteFeedbackEntry('${f.id}')">✕</button>
+      </div>`).join('') : '<div class="empty-state">No feedback logged yet.</div>'}
+    <button class="btn-add-block" style="margin-top:.5rem" onclick="openFeedbackForm()">+ Add feedback</button>`;
+  openModal('Manage Feedback', body, `<button class="btn btn-secondary" onclick="closeModal()">Close</button>`);
+}
+function prepareFeedbackEmail() {
+  const list = loadFeedback();
+  const toSend = list.filter(f=>!f.sentDate);
+  if (!toSend.length) { alert('No new feedback to send — everything has already been emailed.'); return; }
+  const lines = toSend.map((f,i) => [
+    `${i+1}. ${feedbackSectionLabel(f.section)} — ${feedbackTypeLabel(f.type)} (${fmtDate(f.date)}${f.name?`, ${f.name}`:''})`,
+    `What's happening: ${f.current}`,
+    f.requested ? `Requested change: ${f.requested}` : null,
+    f.importance ? `Importance: ${importanceLabel(f.importance)}` : null,
+  ].filter(Boolean).join('\n')).join('\n\n');
+  const summary = `Being & Becoming — feedback (${toSend.length} item${toSend.length===1?'':'s'})\n\n${lines}`;
+  const subject = `B&B tool feedback — ${toSend.length} item${toSend.length===1?'':'s'} — ${today()}`;
+  let copied = false;
+  try { navigator.clipboard.writeText(summary); copied = true; } catch(e) {}
+  const mailto = `mailto:${FEEDBACK_EMAIL_TO}?subject=${encodeURIComponent(subject)}${copied?'':`&body=${encodeURIComponent(summary)}`}`;
+  window.location.href = mailto;
+  const now = today();
+  toSend.forEach(f => f.sentDate = now);
+  saveFeedback(list);
+  updateFeedbackBadges();
+  closeModal();
+  alert(copied
+    ? `Feedback copied to your clipboard and your email app should be opening, addressed to ${FEEDBACK_EMAIL_TO} — paste the feedback into the body and send. These ${toSend.length} item(s) are now marked as sent.`
+    : `Your email app should be opening, addressed to ${FEEDBACK_EMAIL_TO}, with the feedback already in the body — just check it over and send. These ${toSend.length} item(s) are now marked as sent.`);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
 // ── Multiple-tab protection ────────────────────────────────────
@@ -5971,6 +6141,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadEverything();
   renderView('home');
   updateActionBadge();
+  updateFeedbackBadges();
 });
 
 
