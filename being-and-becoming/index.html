@@ -410,7 +410,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   <div id="learnings" class="view"></div>
 </main>
 
-<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261024_v3</span></footer>
+<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261024_v4</span></footer>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalBox">
@@ -4840,7 +4840,13 @@ const IMP_SOURCES = [
 ];
 const IMP_TRAIT_CATS = ['strengths','saboteurs','social-style','conflict-style','idol','leadership-type'];
 const IMP_FLAGS = ['sensitive','coach_observation','third_party'];
-const IMP_MAX_ITEMS = 40;
+// No cap on what Claude suggests (the depth choice guides it); this only guards against a runaway reply
+const IMP_SAFETY_MAX = 200;
+const IMP_DEPTHS = [
+  { id:'focused', label:'Focused: just the most important things', text:'Focus on the most important things only: around 15 suggestions at most.' },
+  { id:'standard', label:'Standard: fewer, better suggestions', text:'Fewer, better suggestions are best. If the notes are long, focus on recurring themes and the most recent material.' },
+  { id:'thorough', label:'Thorough: everything worth keeping', text:'Be thorough: include everything that is genuinely worth keeping, but still do not pad or repeat.' },
+];
 const IMP_SENSITIVE_RE = /\b(diagnos\w*|medicat\w*|therap(?:y|ist|ies)|depress\w*|anxiety|anxious|panic|self-harm|suicid\w*|abus\w*|divorc\w*|affair|pregnan\w*|miscarriage|cancer|illness|disabilit\w*|salary|debt|redundan\w*|dismiss\w*|disciplinar\w*|grievance|bereave\w*|grief|addict\w*|alcohol|police|court|lawsuit)\b/i;
 // Where each kind of proposal goes and which fields are shown for editing (k = key, kind = text | area | date | sel | lines)
 const IMP_DEFS = {
@@ -4855,11 +4861,37 @@ const IMP_DEFS = {
   energiser:  { group:'Energisers & Drainers', fields:[{k:'text',label:'An energiser: what gives you energy',kind:'area',max:300,primary:1},{k:'notes',label:'Notes',kind:'area',max:300}] },
   drainer:    { group:'Energisers & Drainers', fields:[{k:'text',label:'A drainer: what takes your energy',kind:'area',max:300,primary:1},{k:'notes',label:'Notes',kind:'area',max:300}] },
   behavioural:{ group:'Behavioural profile', fields:[{k:'field',label:'Which part',kind:'sel',opts:'behav',always:1},{k:'text',label:'What to record',kind:'area',max:500,primary:1}] },
-  note:       { group:'Notes to add to things you already have', fields:[{k:'on',label:'On a',kind:'sel',opts:'noteOn',always:1},{k:'target',label:'Which one (its name)',kind:'text',max:160,always:1},{k:'text',label:'Note to add',kind:'area',max:500,primary:1}] },
+  note:       { group:'Notes to add to things you already have', fields:[{k:'on',label:'On a',kind:'sel',opts:'noteOn',always:1},{k:'target',label:'Which one (its name)',kind:'text',max:300,always:1},{k:'text',label:'Note to add',kind:'area',max:500,primary:1}] },
   scratchpad: { group:'Scratchpad', fields:[{k:'text',label:'Thought',kind:'area',max:500,primary:1}] },
 };
 const IMP_GROUP_ORDER = ['Learnings','Actions','Bright spots','Values','Goals','Habits','Qualities & Styles','Energisers & Drainers','Behavioural profile','Notes to add to things you already have','Scratchpad'];
-let IMP = { source:'own', explain:'', include:true, summary:'', items:[], tag:'' };
+let IMP = { source:'own', depth:'standard', explain:'', include:true, summary:'', items:[], tag:'' };
+
+// ── Short codes for existing items, e.g. [G-k3f9a]. Worked out from each item's id, so they stay the same
+// between copying the prompt and pasting the reply. Claude uses the code; B&B swaps it back for the full name. ──
+const IMP_CODE_LISTS = {
+  V: () => VALUES.filter(v => !v.archived).map(v => ({ id: v.id, name: v.label })),
+  G: () => GOALS.map(g => ({ id: g.id, name: g.title })),
+  Q: () => TRAITS.filter(t => t.label).map(t => ({ id: t.id, name: t.label })),
+  E: () => ENERGISERS_DRAINERS.filter(e => e.type !== 'drainer').map(e => ({ id: e.id, name: e.description })),
+  D: () => ENERGISERS_DRAINERS.filter(e => e.type === 'drainer').map(e => ({ id: e.id, name: e.description })),
+};
+function impHash(id) {
+  let h = 2166136261; const t = String(id);
+  for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0).toString(36) + '00000').slice(0, 5);
+}
+function impCode(prefix, id) { return prefix + '-' + impHash(id); }
+// If the text starts with (or is) a code, return the full name of that item; otherwise return the text unchanged
+function impDecode(s) {
+  const t = String(s == null ? '' : s).trim();
+  const m = t.match(/^\[?\s*([VGQED])\s*-\s*([a-z0-9]{5})\s*\]?/i);
+  if (!m) return t;
+  const hit = IMP_CODE_LISTS[m[1].toUpperCase()]().find(x => impHash(x.id) === m[2].toLowerCase());
+  if (hit) return hit.name;
+  const rest = t.slice(m[0].length).replace(/^[\s:–—-]+/, '').trim();
+  return rest || t;
+}
 
 function impNorm(s) { return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
 function impTokens(s) {
@@ -4883,16 +4915,19 @@ function impTrunc(s, n) { s = String(s || '').replace(/\s+/g, ' ').trim(); retur
 
 // ── The prompt ──
 function impExistingBlock() {
-  const L = (title, arr) => arr.length ? title + ':\n' + arr.slice(0, 40).map(x => '- ' + impTrunc(x, 80)).join('\n') : '';
-  const traitsByCat = IMP_TRAIT_CATS.map(c => { const cat = TRAIT_CATEGORIES.find(x => x.id === c); const ts = TRAITS.filter(t => t.category === c && t.label).map(t => t.label); return ts.length ? '- ' + cat.label + ': ' + ts.slice(0, 15).map(x => impTrunc(x, 50)).join(', ') : ''; }).filter(Boolean);
+  const full = x => impTrunc(x, 300);
+  const C = (title, prefix) => { const arr = IMP_CODE_LISTS[prefix](); return arr.length ? title + ':\n' + arr.slice(0, 80).map(x => '- [' + impCode(prefix, x.id) + '] ' + full(x.name)).join('\n') : ''; };
+  const L = (title, arr) => arr.length ? title + ':\n' + arr.slice(0, 80).map(x => '- ' + full(x)).join('\n') : '';
+  const goals = GOALS.length ? 'My goals (sub-goals in brackets):\n' + GOALS.slice(0, 80).map(g => '- [' + impCode('G', g.id) + '] ' + full(g.title) + ((g.subGoals || []).length ? ' [sub-goals: ' + g.subGoals.map(x => full(x.title)).join('; ') + ']' : '')).join('\n') : '';
+  const traitsByCat = IMP_TRAIT_CATS.map(c => { const cat = TRAIT_CATEGORIES.find(x => x.id === c); const ts = TRAITS.filter(t => t.category === c && t.label); return ts.length ? '- ' + cat.label + ': ' + ts.slice(0, 20).map(t => '[' + impCode('Q', t.id) + '] ' + impTrunc(t.label, 80)).join(', ') : ''; }).filter(Boolean);
   const parts = [
-    L('My values', VALUES.filter(v => !v.archived).map(v => v.label)),
-    L('My goals (sub-goals in brackets)', GOALS.map(g => g.title + ((g.subGoals || []).length ? ' [' + g.subGoals.map(s => s.title).join('; ') + ']' : ''))),
+    C('My values', 'V'),
+    goals,
     L('My habits', load(SK.habits).filter(habitIsActive).map(h => h.label)),
     L('My skills', SKILLS.map(s => s.label)),
     traitsByCat.length ? 'My qualities and styles:\n' + traitsByCat.join('\n') : '',
-    L('Things that give me energy', ENERGISERS_DRAINERS.filter(e => e.type !== 'drainer').map(e => e.description)),
-    L('Things that drain me', ENERGISERS_DRAINERS.filter(e => e.type === 'drainer').map(e => e.description)),
+    C('Things that give me energy', 'E'),
+    C('Things that drain me', 'D'),
   ].filter(Boolean);
   return parts.join('\n\n');
 }
@@ -4909,7 +4944,8 @@ function buildImportPrompt() {
   L.push('The notes follow at the end of this message.');
   L.push('');
   L.push('WHAT I WOULD LIKE YOU TO DO');
-  L.push('Read the notes and suggest things worth adding to my B&B log. Suggest only what is actually in the notes; do not invent or pad. Fewer, better suggestions are best (no more than ' + IMP_MAX_ITEMS + '). If something is worth keeping but you are not sure where it belongs, suggest it as a "scratchpad" item.');
+  const depth = IMP_DEPTHS.find(d => d.id === IMP.depth) || IMP_DEPTHS[1];
+  L.push('Read the notes and suggest things worth adding to my B&B log. Suggest only what is actually in the notes; do not invent or pad. ' + depth.text + ' If something is worth keeping but you are not sure where it belongs, suggest it as a "scratchpad" item.');
   L.push('');
   L.push('RULES');
   L.push('- Add only. Do not suggest deleting, changing, scoring or rating anything. Do not suggest importance levels, scores, ratings or check-ins.');
@@ -4918,14 +4954,17 @@ function buildImportPrompt() {
   L.push('- Leave out health, family, financial and other sensitive personal detail. If something sensitive seems important, do not repeat it: say in your summary that something was left out. If you do include anything borderline, put "sensitive" in its flags.');
   L.push('- If something is the coach’s view rather than something I said or did, word it as "My coach noticed that…" and put "coach_observation" in its flags, so I can decide whether I agree.');
   L.push('- For each item give a short "evidence" (a few words from the notes, no more than 20 words) and a one-line "why" saying why it belongs where you have put it.');
-  L.push('- Where an item relates to one of my existing values or goals (listed below), use exactly its name in "values" or "goal". Do not suggest something I already have; if the notes add to something I already have, use a "note" item instead.');
+  if (IMP.include) L.push('- Each of my existing values, goals, qualities, energisers and drainers (listed below) has a short code in square brackets, such as [G-ab12c]. Where an item relates to one of them, put its code (for example "G-ab12c") in "values", "value", "goal", "goals" or a note\u2019s "target", rather than its name. Do not suggest something I already have; if the notes add to something I already have, use a "note" item instead.');
+  else L.push('- Do not suggest anything that obviously repeats something I am likely to have already; where the notes add to an existing value or goal, use a "note" item instead.');
   L.push('');
   L.push('HOW TO REPLY');
   L.push('First, a short plain-language summary (three to six sentences) of what you found. Then ONE code block containing JSON, exactly in this shape, and nothing after it:');
+  L.push('If the reply would become very long, stop after a complete suggestion, close the JSON properly, and say in your summary that there is more. I can then ask you to continue in a second code block.');
   L.push('```json');
   L.push('{"bb_import_version":1,"summary":"one or two sentences","proposals":[');
-  L.push('  {"type":"learning","text":"…","category":"Goals","goal":"…","values":["…"],"evidence":"…","why":"…","flags":[]},');
-  L.push('  {"type":"action","text":"a small step, as an invitation","due":"YYYY-MM-DD or empty","goal":"…","values":["…"],"evidence":"…","why":"…","flags":[]}');
+  const gx = IMP.include ? 'G-…' : '…', vx = IMP.include ? 'V-…' : '…';
+  L.push('  {"type":"learning","text":"…","category":"Goals","goal":"' + gx + '","values":["' + vx + '"],"evidence":"…","why":"…","flags":[]},');
+  L.push('  {"type":"action","text":"a small step, as an invitation","due":"YYYY-MM-DD or empty","goal":"' + gx + '","values":["' + vx + '"],"evidence":"…","why":"…","flags":[]}');
   L.push(']}');
   L.push('```');
   L.push('The types you can use, and their fields:');
@@ -4934,13 +4973,13 @@ function buildImportPrompt() {
   L.push('- brightspot: text, value, goal (a moment when I lived one of my values)');
   L.push('- value: label (a word or short phrase), valueType ("intrinsic" if it comes from me, "extrinsic" if it is about others), notes');
   L.push('- goal: title, category (one of: ' + GOAL_CATEGORIES.join(' | ') + '), goalType (' + GOAL_TYPES.join(' | ') + '), notes, values, subgoals (a list of short strings)');
-  L.push('- subgoal: title, goal (the name of one of my existing goals)');
+  L.push('- subgoal: title, goal (the code of one of my existing goals)');
   L.push('- habit: label, cue, why, steps, target, trigger, smallest, anchor, reward, supporter, howKnow, values, goals');
   L.push('- trait: category (one of: ' + IMP_TRAIT_CATS.join(' | ') + '), label, notes');
   L.push('- energiser: text, notes, values (something that gives me energy)');
   L.push('- drainer: text, notes, values (something that takes my energy)');
   L.push('- behavioural: field (one of: ' + BEHAVIOURAL_FIELDS.map(f => f.id).join(' | ') + '), text');
-  L.push('- note: on (value | goal | trait | energiser | drainer), target (the name of the existing item), text');
+  L.push('- note: on (value | goal | trait | energiser | drainer), target (the code of the existing item), text');
   L.push('- scratchpad: text');
   if (IMP.include) {
     const ex = impExistingBlock();
@@ -4961,10 +5000,12 @@ function openImportPromptModal() {
     <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Turn notes into suggestions for your log. This builds a prompt for Claude. You paste it into a Claude chat with your notes, then bring Claude’s reply back here to choose what to add. <strong>Your notes go to Claude only; B&amp;B never sees them.</strong> Nothing is added until you tick it.</p>
     <div class="field-group"><label class="field-label">What are the notes?</label>
       <select id="impSource" onchange="impPromptChanged()">${IMP_SOURCES.map(s => `<option value="${s.id}" ${IMP.source === s.id ? 'selected' : ''}>${escapeHtml(s.label)}</option>`).join('')}</select></div>
+    <div class="field-group"><label class="field-label">How many suggestions?</label>
+      <select id="impDepth" onchange="impPromptChanged()">${IMP_DEPTHS.map(d => `<option value="${d.id}" ${IMP.depth === d.id ? 'selected' : ''}>${escapeHtml(d.label)}</option>`).join('')}</select></div>
     <div class="field-group" id="impExplainWrap" style="${IMP.source === 'other' ? '' : 'display:none'}"><label class="field-label">What is this document, and what would you like drawn from it?</label>
       <textarea id="impExplain" rows="3" oninput="impPromptChanged()" placeholder="e.g. A 360 feedback report from last spring. I would like anything about how others see my strengths.">${escapeHtml(IMP.explain)}</textarea></div>
     <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:.5rem 0"><input type="checkbox" id="impInclude" ${IMP.include ? 'checked' : ''} onchange="impPromptChanged()" style="margin-top:3px">
-      <span>Include the names of my existing values, goals, habits, skills, qualities and energisers or drainers, so Claude can avoid repeats and link to them. <span style="color:var(--text3)">(Names only, no scores or notes.)</span></span></label>
+      <span>Include the names of my existing values, goals, habits, skills, qualities and energisers or drainers, so Claude can avoid repeats and link to them. <span style="color:var(--text3)">(Names only, no scores or notes. Each gets a short code so Claude can link to it without copying the name.)</span></span></label>
     <div style="font-weight:500;margin:.75rem 0 4px">The prompt</div>
     <textarea id="impPromptText" readonly style="width:100%;height:240px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5"></textarea>
     <p style="font-size:12px;color:var(--text3);margin-top:.5rem">Before you paste, consider removing names or details you would rather Claude did not see. Notes from a coach may include details about other people.</p>`;
@@ -4976,6 +5017,7 @@ function openImportPromptModal() {
 }
 function impPromptChanged() {
   const s = document.getElementById('impSource'); if (s) IMP.source = s.value;
+  const dp = document.getElementById('impDepth'); if (dp) IMP.depth = dp.value;
   const e = document.getElementById('impExplain'); if (e) IMP.explain = e.value;
   const i = document.getElementById('impInclude'); if (i) IMP.include = i.checked;
   const w = document.getElementById('impExplainWrap'); if (w) w.style.display = IMP.source === 'other' ? '' : 'none';
@@ -4995,7 +5037,7 @@ function impCopyPrompt() {
 // ── Step 2: paste Claude's reply ──
 function openImportPasteModal(errMsg) {
   const body = `
-    <p style="font-size:13px;color:var(--text2);margin-bottom:.5rem">Paste Claude’s whole reply here, including the code box at the end. You will then see each suggestion and choose what to add. Nothing is ticked to begin with.</p>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:.5rem">Paste Claude’s whole reply here, including the code box at the end. You will then see each suggestion and choose what to add. Nothing is ticked to begin with. If Claude’s reply was cut off, paste it anyway: every complete suggestion will still be read.</p>
     <textarea id="impReply" rows="12" style="width:100%" placeholder="Paste Claude’s reply here"></textarea>
     <div id="impErr" style="color:var(--danger,#b3261e);font-size:13px;margin-top:.5rem;min-height:18px">${errMsg ? escapeHtml(errMsg) : ''}</div>`;
   openModal('Paste Claude’s reply', body,
@@ -5006,24 +5048,52 @@ function impReview() {
   const text = (document.getElementById('impReply') || {}).value;
   const r = parseImportReply(text);
   if (r.error) { const e = document.getElementById('impErr'); if (e) e.textContent = r.error; return; }
-  IMP.items = r.items; IMP.summary = r.summary; IMP.sentFlags = r.skipped;
+  IMP.items = r.items; IMP.summary = r.summary; IMP.sentFlags = r.skipped; IMP.truncated = !!r.truncated; IMP.overMax = r.overMax || 0;
   openImportReview();
 }
 
 // ── Reading the reply. Only data is read: every value is checked, trimmed and kept as plain text. ──
+// Reads complete suggestions one by one from a reply that was cut off (or otherwise not quite valid JSON)
+function impSalvage(raw) {
+  if (!/"bb_import_version"\s*:\s*1\b/.test(raw)) return null;
+  let summary = '';
+  const sm = raw.match(/"summary"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (sm) { try { summary = JSON.parse('"' + sm[1] + '"'); } catch(e) {} }
+  const pm = raw.match(/"proposals"\s*:\s*\[/); if (!pm) return null;
+  const proposals = [];
+  let i = pm.index + pm[0].length, depth = 0, start = -1, inStr = false, esc = false;
+  for (; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+    if (ch === '"') { inStr = true; continue; }
+    if (ch === '{') { if (depth === 0) start = i; depth++; }
+    else if (ch === '}') { depth--; if (depth === 0 && start >= 0) { try { proposals.push(JSON.parse(raw.slice(start, i + 1))); } catch(e) {} start = -1; } if (depth < 0) break; }
+    else if (ch === ']' && depth === 0) break;
+  }
+  return { bb_import_version: 1, summary, proposals };
+}
 function parseImportReply(text) {
   let raw = String(text || '').trim();
   if (!raw) return { error:'Nothing to review yet. Paste Claude’s reply first.' };
   const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const openFence = raw.match(/```(?:json)?\s*([\s\S]*)$/i);
   if (fence) raw = fence[1].trim();
-  else { const a = raw.indexOf('{'), b = raw.lastIndexOf('}'); if (a >= 0 && b > a) raw = raw.slice(a, b + 1); }
-  let d; try { d = JSON.parse(raw); } catch(e) { return { error:'That doesn’t look like the import data. Copy Claude’s whole reply, including the part in the code box, and try again. If it keeps happening, ask Claude to send the data again in a single code box.' }; }
+  else if (openFence && openFence[1].indexOf('{') >= 0) raw = openFence[1].trim();
+  const whole = raw;
+  if (!fence) { const a = raw.indexOf('{'), b = raw.lastIndexOf('}'); if (a >= 0 && b > a) raw = raw.slice(a, b + 1); }
+  let d, truncated = false;
+  try { d = JSON.parse(raw); } catch(e) {
+    d = impSalvage(whole);
+    if (!d || !d.proposals.length) return { error:'That doesn’t look like the import data. Copy Claude’s whole reply, including the part in the code box, and try again. If it keeps happening, ask Claude to send the data again in a single code box.' };
+    truncated = true;
+  }
   if (!d || typeof d !== 'object' || d.bb_import_version !== 1) return { error:'This isn’t import data from the B&B prompt (the version marker is missing). Use the prompt from this screen and try again.' };
   if (!Array.isArray(d.proposals)) return { error:'The data was readable but had no suggestions in it.' };
   const items = []; let skipped = 0;
-  d.proposals.slice(0, IMP_MAX_ITEMS).forEach(p => { const it = impNormalise(p); if (it) items.push(it); else skipped++; });
+  const overMax = Math.max(0, d.proposals.length - IMP_SAFETY_MAX);
+  d.proposals.slice(0, IMP_SAFETY_MAX).forEach(p => { const it = impNormalise(p); if (it) items.push(it); else skipped++; });
   if (!items.length) return { error:'The data was readable but none of the suggestions could be used, so nothing is shown.' };
-  return { summary: rmStr(d.summary, 600), items, skipped };
+  return { summary: rmStr(d.summary, 600), items, skipped, truncated, overMax };
 }
 function impList(v, n, max) { return (Array.isArray(v) ? v : (typeof v === 'string' && v ? [v] : [])).slice(0, n).map(x => rmStr(x, max)).filter(Boolean); }
 function impNormalise(p) {
@@ -5034,13 +5104,14 @@ function impNormalise(p) {
   const def = IMP_DEFS[type];
   const it = { pid: 'p' + uid(), type, evidence: rmStr(p.evidence, 240), why: rmStr(p.why, 240),
     flags: impList(p.flags, 4, 30).map(f => f.toLowerCase().replace(/[^a-z_]/g, '')).filter(f => IMP_FLAGS.includes(f)),
-    linkValues: impList(p.values, 6, 80), linkGoal: rmStr(p.goal, 160), linkValue: rmStr(p.value, 80), linkGoals: impList(p.goals, 4, 160) };
+    linkValues: impList(p.values, 6, 80).map(impDecode), linkGoal: rmStr(impDecode(p.goal), 300), linkValue: rmStr(impDecode(p.value), 120), linkGoals: impList(p.goals, 4, 160).map(impDecode) };
   def.fields.forEach(f => {
     if (f.kind === 'lines') it[f.k] = impList(p[f.k], 6, 160);
     else if (f.k === 'parent') it.parent = '';
     else it[f.k] = rmStr(p[f.k], f.max || 100);
   });
   if (type === 'subgoal') it.title = it.title || rmStr(p.text, 160);
+  if (type === 'note' && it.target) it.target = rmStr(impDecode(p.target), 300);
   if (!it.text && 'text' in it) it.text = rmStr(p.description, 600) || rmStr(p.label, 600);
   if (type === 'learning') it.category = LEARNING_CATEGORIES.find(c => c.toLowerCase() === (it.category || '').toLowerCase()) || 'General';
   if (type === 'goal') { it.category = GOAL_CATEGORIES.find(c => c.toLowerCase() === (it.category || '').toLowerCase()) || ''; it.goalType = GOAL_TYPES.find(c => c.toLowerCase() === (it.goalType || '').toLowerCase()) || ''; }
@@ -5165,6 +5236,8 @@ function openImportReview() {
     ${groups.map(x => `<div class="section-label" style="margin-top:1rem;display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${escapeHtml(x.g)} (${x.items.length})</span>
       <span style="font-weight:400;font-size:12px"><a href="#" onclick="impGroupTick(${JSON.stringify(x.g).replace(/"/g, '&quot;')},true);return false">Tick all</a> · <a href="#" onclick="impGroupTick(${JSON.stringify(x.g).replace(/"/g, '&quot;')},false);return false">None</a></span></div>
       ${x.items.map(impRowHtml).join('')}`).join('')}
+    ${IMP.truncated ? `<p style="font-size:12px;color:var(--text2);background:var(--bg2,#f3f1ec);border-radius:6px;padding:6px 8px">Claude’s reply looks cut off, so the last suggestion or two may be missing. Every complete suggestion is shown. To get the rest, ask Claude to “continue from where you stopped, in a new code block”, then import that reply separately.</p>` : ''}
+    ${IMP.overMax ? `<p style="font-size:12px;color:var(--text3)">There were more suggestions than B&B can show at once, so the first ${IMP_SAFETY_MAX} are shown.</p>` : ''}
     ${IMP.sentFlags ? `<p style="font-size:12px;color:var(--text3)">${IMP.sentFlags} suggestion${IMP.sentFlags === 1 ? ' was' : 's were'} left out because ${IMP.sentFlags === 1 ? 'it was' : 'they were'} incomplete.</p>` : ''}`;
   openModal('Choose what to add', body,
     `<span id="impCount" style="font-size:13px;color:var(--text2);margin-right:auto">0 selected</span>
