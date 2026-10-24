@@ -410,7 +410,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   <div id="learnings" class="view"></div>
 </main>
 
-<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261024_v4</span></footer>
+<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261024_v6</span></footer>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalBox">
@@ -4865,7 +4865,7 @@ const IMP_DEFS = {
   scratchpad: { group:'Scratchpad', fields:[{k:'text',label:'Thought',kind:'area',max:500,primary:1}] },
 };
 const IMP_GROUP_ORDER = ['Learnings','Actions','Bright spots','Values','Goals','Habits','Qualities & Styles','Energisers & Drainers','Behavioural profile','Notes to add to things you already have','Scratchpad'];
-let IMP = { source:'own', depth:'standard', explain:'', include:true, summary:'', items:[], tag:'' };
+let IMP = { source:'own', depth:'standard', explain:'', include:true, listRecent:true, hideDup:false, summary:'', items:[], tag:'' };
 
 // ── Short codes for existing items, e.g. [G-k3f9a]. Worked out from each item's id, so they stay the same
 // between copying the prompt and pasting the reply. Claude uses the code; B&B swaps it back for the full name. ──
@@ -4931,6 +4931,17 @@ function impExistingBlock() {
   ].filter(Boolean);
   return parts.join('\n\n');
 }
+function impRecentBlock() {
+  const t = x => impTrunc(x, 110);
+  const sorted = (arr, f) => arr.slice().sort((a, b) => String(b[f] || '').localeCompare(String(a[f] || '')));
+  const L = (title, arr) => arr.length ? title + ':\n' + arr.map(x => '- ' + t(x)).join('\n') : '';
+  return [
+    L('Learnings I have already recorded', sorted(load(SK.learnings), 'date').slice(0, 40).map(x => x.description)),
+    L('Actions I already have open', sorted(load(SK.actions).filter(a => !a.completed), 'createdDate').slice(0, 30).map(x => x.description)),
+    L('Bright spots I have already noted', sorted(load(SK.brightSpots), 'date').slice(0, 25).map(x => x.description)),
+    L('On my Scratchpad', sorted(load(SK.scratchpad).filter(x => !x.outcome), 'date').slice(0, 20).map(x => x.text)),
+  ].filter(Boolean).join('\n\n');
+}
 function impSourceInfo() { return IMP_SOURCES.find(s => s.id === IMP.source) || IMP_SOURCES[0]; }
 function impPromptReady() { return IMP.source !== 'other' || (IMP.explain || '').trim().length >= 10; }
 function buildImportPrompt() {
@@ -4986,6 +4997,10 @@ function buildImportPrompt() {
     L.push('');
     L.push('WHAT I ALREADY HAVE IN B&B (names only, so you can avoid repeats and link to them)');
     L.push(ex || '(nothing yet)');
+    if (IMP.listRecent) {
+      const rc = impRecentBlock();
+      if (rc) { L.push(''); L.push('WHAT I HAVE ALREADY RECORDED (short, most recent first). Please do not suggest points these already cover; if the notes add something new to one of them, say so in a "note" item instead.'); L.push(rc); }
+    }
   }
   L.push('');
   L.push('MY NOTES');
@@ -5006,6 +5021,8 @@ function openImportPromptModal() {
       <textarea id="impExplain" rows="3" oninput="impPromptChanged()" placeholder="e.g. A 360 feedback report from last spring. I would like anything about how others see my strengths.">${escapeHtml(IMP.explain)}</textarea></div>
     <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:.5rem 0"><input type="checkbox" id="impInclude" ${IMP.include ? 'checked' : ''} onchange="impPromptChanged()" style="margin-top:3px">
       <span>Include the names of my existing values, goals, habits, skills, qualities and energisers or drainers, so Claude can avoid repeats and link to them. <span style="color:var(--text3)">(Names only, no scores or notes. Each gets a short code so Claude can link to it without copying the name.)</span></span></label>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:.25rem 0 .5rem 1.4rem"><input type="checkbox" id="impRecent" ${IMP.listRecent ? 'checked' : ''} onchange="impPromptChanged()" style="margin-top:3px">
+      <span>Also include a short list of what I have already recorded (recent learnings, open actions, bright spots, Scratchpad), so Claude skips points I already have. <span style="color:var(--text3)">(Only the wording of each, shortened. B&amp;B checks the suggestions against your whole log again when you paste the reply.)</span></span></label>
     <div style="font-weight:500;margin:.75rem 0 4px">The prompt</div>
     <textarea id="impPromptText" readonly style="width:100%;height:240px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5"></textarea>
     <p style="font-size:12px;color:var(--text3);margin-top:.5rem">Before you paste, consider removing names or details you would rather Claude did not see. Notes from a coach may include details about other people.</p>`;
@@ -5020,6 +5037,7 @@ function impPromptChanged() {
   const dp = document.getElementById('impDepth'); if (dp) IMP.depth = dp.value;
   const e = document.getElementById('impExplain'); if (e) IMP.explain = e.value;
   const i = document.getElementById('impInclude'); if (i) IMP.include = i.checked;
+  const rcb = document.getElementById('impRecent'); if (rcb) { IMP.listRecent = rcb.checked; rcb.disabled = !IMP.include; }
   const w = document.getElementById('impExplainWrap'); if (w) w.style.display = IMP.source === 'other' ? '' : 'none';
   const t = document.getElementById('impPromptText');
   if (t) t.value = impPromptReady() ? buildImportPrompt() : 'Please explain above what this document is (a sentence or two), and the prompt will appear here.';
@@ -5170,22 +5188,60 @@ function impResolve(it) {
   return r;
 }
 // An existing item that looks the same, so the person can skip it or add the new wording as a note
+// ── Checking suggestions against what is already in B&B ──
+// Everything the person has recorded, as short texts with where they live. Built once per review.
+function impStems(s) { return impTokens(s).map(t => t.length > 4 ? t.replace(/(ing|ed|es|ly|s)$/, '') : t); }
+function impCorpus() {
+  const c = [];
+  const add = (where, text, extra) => { text = String(text || '').trim(); if (text) c.push(Object.assign({ where, text }, extra || {})); };
+  load(SK.learnings).forEach(x => add('Learnings', x.description));
+  load(SK.actions).forEach(x => add('Actions', x.description));
+  load(SK.brightSpots).forEach(x => add('Bright spots', x.description));
+  load(SK.scratchpad).forEach(x => add('Scratchpad', x.text));
+  VALUES.forEach(v => { add('Values', v.label, { noteOn: 'value', id: v.id }); add('Values', v.notes, { noteOn: 'value', id: v.id, label: v.label }); });
+  GOALS.forEach(g => { add('Goals', g.title, { noteOn: 'goal', id: g.id }); add('Goals', g.notes, { noteOn: 'goal', id: g.id, label: g.title }); (g.subGoals || []).forEach(sg => add('Sub-goals of “' + impTrunc(g.title, 40) + '”', sg.title)); });
+  load(SK.habits).forEach(h => { add('Habits', h.label); add('Habits', h.why); add('Habits', h.steps); });
+  TRAITS.forEach(t => { add('Qualities & Styles', t.label, { noteOn: 'trait', id: t.id }); add('Qualities & Styles', t.notes, { noteOn: 'trait', id: t.id, label: t.label }); });
+  load(SK.traitNotes).forEach(n => add('Notes on qualities & styles', n.note));
+  ENERGISERS_DRAINERS.forEach(e => { const w = e.type === 'drainer' ? 'Drainers' : 'Energisers', k = e.type === 'drainer' ? 'drainer' : 'energiser'; add(w, e.description, { noteOn: k, id: e.id }); add(w, e.notes, { noteOn: k, id: e.id, label: e.description }); });
+  BEHAVIOURAL_FIELDS.forEach(f => String(BEHAVIOURAL[f.id] || '').split('\n').forEach(line => add('Behavioural profile', line.replace(/\s*\(From [^)]*\)\s*$/, ''))));
+  c.forEach(x => { x.stems = new Set(impStems(x.text)); x.norm = impNorm(x.text); });
+  return c;
+}
+// How alike two texts are: 'same' (already there), 'similar' (probably the same point reworded), or ''
+function impLevel(aNorm, aStems, b) {
+  if (!aNorm || !b.norm) return '';
+  if (aNorm === b.norm) return 'same';
+  if (Math.min(aNorm.length, b.norm.length) >= 10 && (aNorm.includes(b.norm) || b.norm.includes(aNorm))) return 'same';
+  if (aStems.size < 2 || b.stems.size < 2) return '';
+  let both = 0; aStems.forEach(t => { if (b.stems.has(t)) both++; });
+  const over = both / Math.min(aStems.size, b.stems.size), jac = both / (aStems.size + b.stems.size - both);
+  if (Math.min(aStems.size, b.stems.size) < 5) return (jac >= 0.6 || (both >= 3 && over >= 0.75)) ? 'similar' : '';   // short labels need a closer match
+  if (jac >= 0.7 || (over >= 0.85 && both >= 4)) return 'same';
+  if ((over >= 0.6 && both >= 3) || (jac >= 0.45 && both >= 3)) return 'similar';
+  return '';
+}
+const IMP_TYPE_WHERE = { learning:['Learnings'], action:['Actions'], brightspot:['Bright spots'], value:['Values'], goal:['Goals'], subgoal:['Goals'], habit:['Habits'], trait:['Qualities & Styles'], energiser:['Energisers'], drainer:['Drainers'], scratchpad:['Scratchpad'], behavioural:['Behavioural profile'] };
 function impDuplicate(it) {
-  const t = it.type;
-  const mk = (label, noteOn, id) => ({ label, noteOn: noteOn || '', id: id || '' });
-  const hit = (arr, fn, text) => arr.find(x => impSimilar(fn(x), text));
-  let h;
-  if (t === 'learning') { h = hit(load(SK.learnings), x => x.description, it.text); return h ? mk(h.description) : null; }
-  if (t === 'action') { h = hit(load(SK.actions), x => x.description, it.text); return h ? mk(h.description) : null; }
-  if (t === 'brightspot') { h = hit(load(SK.brightSpots), x => x.description, it.text); return h ? mk(h.description) : null; }
-  if (t === 'scratchpad') { h = hit(load(SK.scratchpad), x => x.text, it.text); return h ? mk(h.text) : null; }
-  if (t === 'value') { h = hit(VALUES, x => x.label, it.label); return h ? mk(h.label, 'value', h.id) : null; }
-  if (t === 'goal') { h = hit(GOALS, x => x.title, it.title); return h ? mk(h.title, 'goal', h.id) : null; }
-  if (t === 'habit') { h = hit(load(SK.habits), x => x.label, it.label); return h ? mk(h.label) : null; }
-  if (t === 'trait') { h = hit(TRAITS.filter(x => x.category === it.category), x => x.label, it.label); return h ? mk(h.label, 'trait', h.id) : null; }
-  if (t === 'energiser' || t === 'drainer') { h = hit(ENERGISERS_DRAINERS.filter(x => (x.type === 'drainer') === (t === 'drainer')), x => x.description, it.text); return h ? mk(h.description, t, h.id) : null; }
-  if (t === 'subgoal') { for (const g of GOALS) { const s = (g.subGoals || []).find(x => impSimilar(x.title, it.title)); if (s) return mk(s.title + ' (in ' + g.title + ')'); } }
-  return null;
+  const q = it.type === 'subgoal' ? it.title : (it.text || it.label || it.title || '');
+  const qNorm = impNorm(q); if (!qNorm) return null;
+  const qStems = new Set(impStems(q));
+  const corpus = IMP.corpus || (IMP.corpus = impCorpus());
+  const home = IMP_TYPE_WHERE[it.type] || [];
+  const short = qStems.size < 5 && ['value','goal','subgoal','habit','trait','energiser','drainer'].includes(it.type);
+  let best = null;
+  corpus.forEach(b => {
+    // a short label (a value, a quality) is only compared with its own kind; a sentence is compared with everything
+    const sameKind = home.some(w => b.where === w || (w === 'Goals' && /^Sub-goals/.test(b.where)));
+    if (short && !sameKind) return;
+    const lv = impLevel(qNorm, qStems, b); if (!lv) return;
+    const score = (lv === 'same' ? 2 : 1) + (sameKind ? 0.5 : 0);
+    if (!best || score > best.score) best = { score, level: lv, label: b.label || b.text, text: b.text, where: b.where, noteOn: b.noteOn || '', id: b.id || '' };
+  });
+  if (!best) return null;
+  // "add as a note on the existing one" only makes sense for an item of the same kind
+  if (best.noteOn !== it.type) { best.noteOn = ''; best.id = ''; }
+  return best;
 }
 function impFieldHtml(it, f) {
   const id = 'imp_' + it.pid + '_' + f.k;
@@ -5203,7 +5259,7 @@ function impFieldHtml(it, f) {
 function impRowHtml(it) {
   const def = IMP_DEFS[it.type];
   const res = impResolve(it); it.res = res;
-  const dup = impDuplicate(it); it.dup = dup;
+  const dup = it.dup; // checked once for the whole reply in openImportReview
   const flagHtml = [];
   if (it.flags.includes('sensitive')) flagHtml.push('<span class="tag" style="background:#fdecea;color:#8a1c12">Sensitive: check before adding</span>');
   if (it.flags.includes('coach_observation')) flagHtml.push('<span class="tag" style="background:#fff4d6;color:#6b4e00">Your coach’s observation: do you agree?</span>');
@@ -5211,11 +5267,11 @@ function impRowHtml(it) {
   const links = [];
   if (res.valueNames.length) links.push('Linked to value' + (res.valueNames.length > 1 ? 's' : '') + ': ' + res.valueNames.map(escapeHtml).join(', '));
   if (res.goalName) links.push('Related goal: ' + escapeHtml(res.goalName));
-  const dupHtml = dup ? `<div style="font-size:12px;color:var(--text2);background:var(--bg2,#f3f1ec);border-radius:6px;padding:6px 8px;margin-top:6px">Looks like something you already have: “${escapeHtml(impTrunc(dup.label, 120))}”.
+  const dupHtml = dup ? `<div style="font-size:12px;background:#fff4d6;color:#6b4e00;border-radius:6px;padding:6px 8px;margin-top:6px"><strong>${dup.level === 'same' ? 'Already in B&amp;B' : 'Similar to something already in B&amp;B'}.</strong> ${escapeHtml(dup.where)}: “${escapeHtml(impTrunc(dup.text, 140))}”
       ${dup.noteOn ? `<select id="impdup_${it.pid}" style="margin-left:4px"><option value="add">Add it anyway</option><option value="note">Add as a note on the existing one</option></select>` : ' You may prefer to leave it unticked.'}</div>` : '';
-  return `<div class="card-sm" style="margin-bottom:.5rem" id="improw_${it.pid}">
+  return `<div class="card-sm" style="margin-bottom:.5rem${dup && dup.level === 'same' ? ';opacity:.8' : ''}" id="improw_${it.pid}">
     <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
-      <input type="checkbox" class="imp-cb" id="impcb_${it.pid}" data-group="${escapeHtml(def.group)}" onchange="impUpdateCount()" style="margin-top:4px">
+      <input type="checkbox" class="imp-cb" id="impcb_${it.pid}" data-dup="${dup ? dup.level : ''}" data-group="${escapeHtml(def.group)}" onchange="impUpdateCount()" style="margin-top:4px">
       <span style="flex:1;font-size:13px"><strong>Add this</strong>${flagHtml.length ? ' ' + flagHtml.join(' ') : ''}</span></label>
     <div style="margin-left:24px">
       ${def.fields.map(f => impFieldHtml(it, f)).join('')}
@@ -5227,14 +5283,22 @@ function impRowHtml(it) {
     </div></div>`;
 }
 function openImportReview() {
-  const groups = IMP_GROUP_ORDER.map(g => ({ g, items: IMP.items.filter(it => IMP_DEFS[it.type].group === g) })).filter(x => x.items.length);
+  IMP.corpus = impCorpus();
+  IMP.items.forEach(it => { it.dup = impDuplicate(it); });
+  // within one reply, a second suggestion that repeats an earlier one
+  IMP.items.forEach((it, i) => { if (it.dup) return; const tx = it.text || it.label || it.title; const q = impNorm(tx), qs = new Set(impStems(tx));
+    for (let k = 0; k < i; k++) { const o = IMP.items[k]; const t = o.text || o.label || o.title; if (o.type !== it.type || !t) continue; const lv = impLevel(q, qs, { norm: impNorm(t), stems: new Set(impStems(t)) }); if (lv) { it.dup = { level: lv, label: t, text: t, where: 'Another suggestion in this reply', noteOn: '', id: '' }; break; } } });
+  const nDup = IMP.items.filter(it => it.dup).length, nSame = IMP.items.filter(it => it.dup && it.dup.level === 'same').length;
+  const groups = IMP_GROUP_ORDER.map(g => ({ g, items: IMP.items.filter(it => IMP_DEFS[it.type].group === g).sort((a, b) => (a.dup ? 1 : 0) - (b.dup ? 1 : 0)) })).filter(x => x.items.length);
   const src = impSourceInfo();
   const body = `
     <p style="font-size:13px;color:var(--text2);margin-bottom:.5rem">${IMP.summary ? escapeHtml(IMP.summary) : 'Claude has suggested the items below.'}</p>
+    ${nDup ? `<div style="font-size:13px;background:#fff4d6;color:#6b4e00;border-radius:6px;padding:8px 10px;margin-bottom:.6rem"><strong>${IMP.items.length - nDup} look new. ${nDup} match${nDup === 1 ? 'es' : ''} something you already have</strong>${nSame ? ' (' + nSame + ' almost word for word)' : ''}. B&amp;B checked every suggestion against your Learnings, Actions, Bright spots, Scratchpad, Values, Goals, Habits, Qualities &amp; Styles, Energisers &amp; Drainers and behavioural profile. Matches are marked in amber and listed last in each group.
+      <label style="display:flex;gap:6px;align-items:center;margin-top:6px;cursor:pointer"><input type="checkbox" id="impHideDup" ${IMP.hideDup ? 'checked' : ''} onchange="impToggleDup()"> Hide the ones that match</label></div>` : `<div style="font-size:13px;color:var(--text2);margin-bottom:.5rem">B&amp;B checked these against everything in your log: none look like things you already have.</div>`}
     <p style="font-size:13px;margin-bottom:.5rem"><strong>Nothing is ticked.</strong> Tick what you want to add. You can change the wording first. Nothing already in your log is changed, and you can remove everything from this import afterwards.</p>
     ${src.id === 'coach' || src.id === 'transcript' ? '<p style="font-size:12px;color:var(--text3);margin-bottom:.5rem">These come from someone else’s notes. Take only what rings true for you.</p>' : ''}
     ${groups.map(x => `<div class="section-label" style="margin-top:1rem;display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${escapeHtml(x.g)} (${x.items.length})</span>
-      <span style="font-weight:400;font-size:12px"><a href="#" onclick="impGroupTick(${JSON.stringify(x.g).replace(/"/g, '&quot;')},true);return false">Tick all</a> · <a href="#" onclick="impGroupTick(${JSON.stringify(x.g).replace(/"/g, '&quot;')},false);return false">None</a></span></div>
+      <span style="font-weight:400;font-size:12px"><a href="#" onclick="impGroupTick(${JSON.stringify(x.g).replace(/"/g, '&quot;')},true);return false">Tick all new</a> · <a href="#" onclick="impGroupTick(${JSON.stringify(x.g).replace(/"/g, '&quot;')},false);return false">None</a></span></div>
       ${x.items.map(impRowHtml).join('')}`).join('')}
     ${IMP.truncated ? `<p style="font-size:12px;color:var(--text2);background:var(--bg2,#f3f1ec);border-radius:6px;padding:6px 8px">Claude’s reply looks cut off, so the last suggestion or two may be missing. Every complete suggestion is shown. To get the rest, ask Claude to “continue from where you stopped, in a new code block”, then import that reply separately.</p>` : ''}
     ${IMP.overMax ? `<p style="font-size:12px;color:var(--text3)">There were more suggestions than B&B can show at once, so the first ${IMP_SAFETY_MAX} are shown.</p>` : ''}
@@ -5245,7 +5309,13 @@ function openImportReview() {
      <button class="btn btn-primary" id="impAddBtn" onclick="impApply()" disabled>Add selected</button>`);
   impUpdateCount();
 }
-function impGroupTick(group, on) { document.querySelectorAll('.imp-cb').forEach(c => { if (c.dataset.group === group) c.checked = on; }); impUpdateCount(); }
+function impGroupTick(group, on) { document.querySelectorAll('.imp-cb').forEach(c => { if (c.dataset.group === group && (!on || !c.dataset.dup)) c.checked = on; }); impUpdateCount(); }
+function impToggleDup() {
+  const h = document.getElementById('impHideDup'); IMP.hideDup = !!(h && h.checked);
+  IMP.items.forEach(it => { const row = document.getElementById('improw_' + it.pid); if (!row || !it.dup) return;
+    row.style.display = IMP.hideDup ? 'none' : ''; if (IMP.hideDup) { const c = document.getElementById('impcb_' + it.pid); if (c) c.checked = false; } });
+  impUpdateCount();
+}
 function impUpdateCount() {
   const n = document.querySelectorAll('.imp-cb:checked').length;
   const c = document.getElementById('impCount'); if (c) c.textContent = n + ' of ' + IMP.items.length + ' selected';
