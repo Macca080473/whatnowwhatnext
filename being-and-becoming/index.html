@@ -69,6 +69,7 @@ parse_Primary(n.content)}catch(l){}a="/EncryptionInfo";n=Qe.find(e,a);if(!n||!n.
   .rm-pill{font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;border:0.5px solid var(--border);color:var(--text3)}
   .rm-pill.rm-planned{background:var(--accent-lt);color:var(--accent);border-color:var(--accent)}
   .rm-pill.rm-done{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .rm-new{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:1px 6px;border-radius:20px;background:#b8860b;color:#fff}
   .rm-caret{font-size:11px;color:var(--text3)}
   .rm-body{padding:0 0 10px 30px}
   .rm-body select{width:auto}
@@ -360,6 +361,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
     <div class="hdr-title">Being and Becoming</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
+    <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff" onclick="openQuickCapture()" title="Jot a thought onto your Scratchpad">+ Jot it down</button>
     <select id="workspaceSwitcher" style="width:auto;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3);font-size:13px;padding:6px 10px"></select>
     <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff;position:relative" onclick="openFeedbackForm()">Feedback<span id="feedbackHdrBadge" class="badge hidden" style="position:absolute;top:-6px;right:-6px"></span></button>
     <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff" onclick="openManageWorkspaces()">Manage</button>
@@ -378,6 +380,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
     <button class="nav-tab" data-view="goals">Goals</button>
     <button class="nav-tab" data-view="habits">Habits</button>
     <button class="nav-tab" data-view="traits">Qualities & Styles</button>
+    <button class="nav-tab" data-view="roadmap">Learning roadmap</button>
     <button class="nav-tab" data-view="wsc">Will, Skill & Connectivity</button>
     <button class="nav-tab" data-view="scratchpad">Scratchpad</button>
     <button class="nav-tab" data-view="actions">Actions <span id="actionBadge" class="badge">0</span></button>
@@ -408,7 +411,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   <div id="learnings" class="view"></div>
 </main>
 
-<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261016_v1</span></footer>
+<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261024_v1</span></footer>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalBox">
@@ -777,6 +780,7 @@ let ACTIVE_WORKSPACE = 'default';
 function nsKey(base) { return `bb_ws_${ACTIVE_WORKSPACE}_${base}`; }
 function wsGet(key) { try { return localStorage.getItem(nsKey(key)); } catch(e) { return null; } }
 function wsSet(key, val) { try { localStorage.setItem(nsKey(key), val); } catch(e) {} }
+function shareTrendOn(key) { const v = wsGet(key); return !!v && v !== 'false' && v !== '0'; }
 function wsRemove(key) { try { localStorage.removeItem(nsKey(key)); } catch(e) {} }
 
 function listWorkspaces() {
@@ -1460,20 +1464,17 @@ function renderInstructions() {
       <div style="font-weight:500;margin-bottom:.75rem">What it contains</div>
       ${HOME_TILES.map(t => {
         const overrides = {
-          snapshot: 'Key highlights about who you are and want to be.',
+          snapshot: 'Your log at a glance: your values, goals, habits and what matters most to you, with a star to set your current focus and a coaching question about it. From here you can create a snapshot to paste into Claude (with an option to ask Claude to spot where your patterns may be showing up), an update for an accountability partner, a spreadsheet for your own analysis, or a look back over the last 12 months.',
           values: 'A record of the intrinsic and extrinsic values to which you want to stay true. The ability to check in to understand the extent to which you feel you are living by these values.',
           traits: "A reference point for information on your strengths, qualities and styles. In this section, you can capture information from tools and exercises that help you understand yourself better. We've included some links to third-party, public tools whose outputs might be of interest.",
           roadmap: 'Real, current ways to learn and people to connect with, built from what you have recorded in B&B. B&B prepares a prompt for Claude (with web search on); Claude’s reply comes back here, where you can keep the items you like, plan them, mark them done and print the lot. New suggestions are added rather than replacing what you have, and events move to Past once their date has gone.',
           habits: 'Small, repeatable behaviours that support your values and goals. Define a habit using the things that help it stick, then come back to score how you are feeling about it and improve one thing at a time. No targets, streaks or tallies.',
-          goals: "A record of your 'big picture' goals across one or more life domains: primary relationships, friends & family, career & work, recreation & fun, finances, faith & spirituality, health & wellness. The ability to track how you're feeling about your goals and your progress towards them. If you wish, you can also add the targets you are working towards.",
-          skill: 'A record of your core skills, with the ability to track how happy you are with these skills — and how you are using and developing them.',
-          will: 'The ability to track the extent to which you have the will to act and thrive. This covers both motivation (the drive to invest energy and effort) and engagement (how emotionally and intellectually connected you feel to your role, purpose and connections).',
-          connectivity: "The ability to track how connected you feel to the people who matter in your life. This covers both your relational capability (building trust and working effectively with others) and collective impact (what you and others achieve together that you couldn't alone).",
-          relevance: 'For any given goal, you can create a set of criteria against which you can score potential tactics to achieve the goal. This helps you evaluate the best path to take to achieve the goal.',
+          goals: "A record of your 'big picture' goals across one or more life domains: primary relationships, friends & family, career & work, recreation & fun, finances, faith & spirituality, health & wellness. The ability to track how you're feeling about your goals and your progress towards them. If you wish, you can also add the targets you are working towards. Goal Relevance, reached from the Goals page, lets you set your own criteria for a goal and score different ways of reaching it.",
           scratchpad: "Somewhere to jot down valuable thoughts to revisit later. To not only make sure a thought isn't lost, but to later reflect upon it, understand why it might be important and what to do about it.",
           actions: "During your use of the tool, this is a place to record small steps you've committed to take to shape your future.",
           learnings: 'A place to capture and refer to helpful learnings. The ability to connect a learning to a current goal or understand when it might be relevant to a future opportunity, challenge or new scenario.',
-          export: 'The ability to take a snapshot of who you are, with a view of applying it to decisions and scenarios you might be exploring in Claude.',
+
+          wsc: 'Three dimensions of how you are doing, each checked in with four short statements and tracked over time: Will (motivation and engagement), Skill (relevance, level and adaptability) and Connectivity (relational capability and collective impact). Alongside them, a record of your core skills and how happy you are with how you are using them.',
         };
         const desc = overrides[t.id] || t.desc;
         return `
@@ -1604,6 +1605,8 @@ function latestContextAnswer(type, itemId, questionId) {
 }
 function saveContextAnswer(type, itemId, questionId, text) {
   const list = load(SK.contextAnswers);
+  const lastSame = [...list].reverse().find(a => a.type===type && a.itemId===itemId && a.questionId===questionId);
+  if (lastSame && lastSame.answer === text) return;
   list.push({ id:uid(), type, itemId, questionId, date:today(), answer:text });
   save(SK.contextAnswers, list);
 }
@@ -1618,11 +1621,13 @@ function pickDefaultContextPick() {
   const allAnswers = load(SK.contextAnswers);
   const withCounts = stars.map(f => ({ ...f, count: allAnswers.filter(a=>a.type===f.type && a.itemId===f.id).length }));
   withCounts.sort((a,b)=>a.count-b.count);
-  const item = withCounts[0];
+  const dayNum = Math.floor(Date.now() / 86400000);
+  const lowest = withCounts.filter(f => f.count === withCounts[0].count);
+  const item = lowest[dayNum % lowest.length];
   const applicable = contextQuestionsFor(item.type);
   const answeredQIds = new Set(allAnswers.filter(a=>a.type===item.type && a.itemId===item.id).map(a=>a.questionId));
   const unanswered = applicable.filter(q=>!answeredQIds.has(q.id));
-  const questionId = unanswered.length ? unanswered[0].id : applicable[Math.floor(Math.random()*applicable.length)].id;
+  const questionId = unanswered.length ? unanswered[dayNum % unanswered.length].id : applicable[dayNum % applicable.length].id;
   return { type:item.type, id:item.id, questionId };
 }
 function setContextPickItem(val) {
@@ -1653,7 +1658,12 @@ function turnContextAnswerIntoAction() {
   const question = CONTEXT_QUESTIONS.find(q=>q.id===contextPickQuestionId);
   const itemLabel = focusItemLabel(contextPickType, contextPickItemId);
   const description = text || `${question?question.text:''}${itemLabel?` — ${itemLabel}`:''}`;
-  openAddAction({ description, goalId: contextPickType==='goal' ? contextPickItemId : '' });
+  let goalId = '', valueIds = [];
+  if (contextPickType==='goal') goalId = contextPickItemId;
+  else if (contextPickType==='value') valueIds = [contextPickItemId];
+  else if (contextPickType==='habit') { const h = load(SK.habits).find(x=>x.id===contextPickItemId); if (h) { goalId = (h.goalIds||[])[0] || ''; valueIds = h.valueIds || []; } }
+  else if (contextPickType==='skill') { const sk = SKILLS.find(x=>x.id===contextPickItemId); if (sk) valueIds = sk.valueIds || []; }
+  openAddAction({ description, goalId, valueIds });
 }
 function openContextHistory() {
   const history = [...load(SK.contextAnswers)].sort((a,b)=>b.date.localeCompare(a.date));
@@ -1930,7 +1940,7 @@ function renderSnapshot() {
     <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Turn everything above into something for someone — or something — else to read.</p>
     <div class="card">
       <div style="font-weight:500;margin-bottom:.5rem">Snapshot for Claude</div>
-      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">Generates a snapshot of everything in this log, ready to paste at the top of a new Claude conversation, followed by whatever you're facing.</p>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">Generates a text snapshot of your log (qualities, values, goals, habits, actions, learnings, bright spots and more, plus your current focus), ready to paste at the top of a new Claude conversation, followed by whatever you're facing. You can ask Claude to spot where your patterns may be showing up.</p>
       <button class="btn btn-primary" onclick="openScenarioContextModal()">📋 Snapshot for Claude</button>
     </div>
     <div class="card">
@@ -1940,12 +1950,12 @@ function renderSnapshot() {
     </div>
     <div class="card">
       <div style="font-weight:500;margin-bottom:.5rem">🤝 Snapshot for your accountability partner</div>
-      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">A readable update covering your Goals, Actions, Learnings, and Bright Spots — ready to paste into a text, email, or WhatsApp message. Values scores, Qualities & Styles, and anything else more personal stay out of it. Goals can be individually excluded from Manage Goals.</p>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">A readable update covering your Goals, Habits, Actions, Learnings, and Bright Spots — ready to paste into a text, email, or WhatsApp message. Trends (rising, steady, dipped, never scores) are included only where you have switched them on. Values scores, Qualities & Styles, and anything else more personal stay out of it. Goals and habits can be individually left out.</p>
       <button class="btn btn-primary" onclick="openShareProgressModal()">🤝 Snapshot for your accountability partner</button>
     </div>
     <div class="card">
       <div style="font-weight:500;margin-bottom:.5rem">📊 Snapshot for your own analysis</div>
-      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">Everything in this log as a spreadsheet, one sheet per section — for digging in deeper than the app's own charts allow. One-way: this isn't restorable, it's just for reading elsewhere.</p>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">Your log as a spreadsheet, one sheet per section — for digging in deeper than the app's own charts allow. One-way: this isn't restorable, it's just for reading elsewhere.</p>
       <button class="btn btn-secondary" onclick="exportExcel()">📊 Snapshot for your own analysis</button>
     </div>
     <div class="card">
@@ -2068,7 +2078,7 @@ function renderValues() {
       const latest = list.length ? list[list.length-1] : null;
       html += `<div class="card-sm" style="margin-bottom:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}${brightSpotsFor(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🌟 ${brightSpotsFor(v.id).length}</span>`:''}${habitsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🔁 ${habitsForValue(v.id).length}</span>`:''}${goalsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🎯 ${goalsForValue(v.id).length}</span>`:''}</span>
+          <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}${v.importance?` <span class="tag ${importanceClass(v.importance)}" style="font-size:10px">${importanceLabel(v.importance)}</span>`:''}${brightSpotsFor(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🌟 ${brightSpotsFor(v.id).length}</span>`:''}${habitsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🔁 ${habitsForValue(v.id).length}</span>`:''}${goalsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🎯 ${goalsForValue(v.id).length}</span>`:''}</span>
           ${latest?`<span style="font-size:18px;font-weight:500;color:var(--accent)">${latest.value}</span>`:''}
         </div>
         ${v.notes?`<div style="font-size:13px;color:var(--text2);margin-top:2px">${escapeHtml(v.notes)}</div>`:''}
@@ -2096,6 +2106,7 @@ function renderValues() {
           <span>${fmtDate(b.date)}</span>
           ${v?`<span style="color:var(--accent)">${escapeHtml(v.label)}</span>`:''}
           ${relatedGoalTagHtml(b.goalId)}
+          ${b.importance?`<span class="tag ${importanceClass(b.importance)}">${importanceLabel(b.importance)}</span>`:''}
         </div>
         <div class="action-btns" style="margin-top:6px">
           <button class="btn btn-secondary btn-sm" onclick="openEditBrightSpot('${b.id}')">Edit</button>
@@ -2432,7 +2443,7 @@ function saveValueCheckin(valueId) {
   save(SK.valueScores, list);
   if (note && document.getElementById('vcNoteAsAction')?.checked) {
     const actions = load(SK.actions);
-    actions.push({ id:uid(), createdDate:today(), description:note, dueDate:'', completed:false, completedDate:null, context:'Values', notes:'' });
+    actions.push({ id:uid(), createdDate:today(), description:note, dueDate:'', completed:false, completedDate:null, context:'Values', notes:'', valueIds:[valueId] });
     save(SK.actions, actions);
   }
   closeModal(); renderView(currentView);
@@ -2751,7 +2762,7 @@ function applyTraitFromForm(categoryId, id) {
     save(SK.traitNotes, noteList);
     if (document.getElementById('mgTraitNoteAsAction')?.checked) {
       const actions = load(SK.actions);
-      actions.push({ id:uid(), createdDate:today(), description:notes, dueDate:'', completed:false, completedDate:null, context:'Qualities & Styles', notes:'' });
+      actions.push({ id:uid(), createdDate:today(), description:notes, dueDate:'', completed:false, completedDate:null, context:'Qualities & Styles', notes:'From a note on: ' + label });
       save(SK.actions, actions);
     }
   }
@@ -3030,7 +3041,7 @@ function renderGoals() {
         <div style="flex:1">
           <div style="font-weight:500;font-size:14px">${escapeHtml(g.title)}</div>
           <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
-            ${g.category?`<span class="tag">${escapeHtml(g.category)}</span>`:''}
+            ${g.category?`<span class="tag">${escapeHtml(g.category)}</span>`:''}${g.goalType?`<span class="tag">${escapeHtml(g.goalType)}</span>`:''}
             ${(g.valueIds||[]).map(vid=>{const v=VALUES.find(x=>x.id===vid);return v?`<span class="tag" style="color:var(--accent)">${escapeHtml(v.label)}</span>`:'';}).join('')}
             ${g.dueDate?`<span style="font-size:11px;color:var(--text3)">Around ${fmtDate(g.dueDate)}</span>`:''}
             ${habitsForGoal(g.id).length?`<span style="font-size:11px;color:var(--accent)">🔁 ${habitsForGoal(g.id).length} habit${habitsForGoal(g.id).length===1?'':'s'}</span>`:''}
@@ -3162,7 +3173,8 @@ function moveGoal(id, direction) {
   saveGoals();
   openManageGoals();
 }
-const GOAL_CATEGORIES = ['Finances','Career & work','Recreation & fun','Health & wellbeing','Relationships','Personal growth'];
+const GOAL_CATEGORIES = ['Primary relationships','Friends & family','Career & work','Recreation & fun','Finances','Faith & spirituality','Health & wellness'];
+const GOAL_TYPES = ['Outcome','Performance','Process'];
 
 // ── Scratchpad ──────────────────────────────────────────────────
 const SCRATCHPAD_TIMINGS = ['Short-term','Medium-term','Long-term','TBC'];
@@ -3198,7 +3210,10 @@ function openEditGoal(goalId) {
   let body = `
     <div class="field-group"><label class="field-label">Label</label><textarea id="mgGoalTitle">${g?escapeHtml(g.title):''}</textarea></div>
     <div class="field-group"><label class="field-label">Category</label>
-      <select id="mgGoalCat">${GOAL_CATEGORIES.map(c=>`<option value="${c}" ${g?.category===c?'selected':''}>${c}</option>`).join('')}</select>
+      <select id="mgGoalCat"><option value="">No category</option>${[...GOAL_CATEGORIES, ...((g && g.category && !GOAL_CATEGORIES.includes(g.category)) ? [g.category] : [])].map(c=>`<option value="${escapeHtml(c)}" ${g?.category===c?'selected':''}>${escapeHtml(c)}</option>`).join('')}</select>
+    </div>
+    <div class="field-group"><label class="field-label">Type of goal <span style="font-weight:400;color:var(--text3)">(optional — see the guide to Goals)</span></label>
+      <select id="mgGoalType"><option value="">Not sure / not set</option>${GOAL_TYPES.map(t=>`<option value="${t}" ${g?.goalType===t?'selected':''}>${t}</option>`).join('')}</select>
     </div>
     <div class="field-group"><label class="field-label">What progress looks like here <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
       <textarea id="mgGoalNotes">${g?escapeHtml(g.notes||''):''}</textarea>
@@ -3285,6 +3300,7 @@ function saveGoalMeta(goalId) {
   const title = document.getElementById('mgGoalTitle').value.trim();
   if (!title) { alert('Please enter a goal.'); return; }
   const category = document.getElementById('mgGoalCat').value;
+  const goalType = document.getElementById('mgGoalType').value;
   const notes = document.getElementById('mgGoalNotes').value.trim();
   const dueDate = document.getElementById('mgGoalDate').value;
   const targetRaw = document.getElementById('mgGoalTarget').value;
@@ -3303,11 +3319,11 @@ function saveGoalMeta(goalId) {
   const shareWithPartner = document.getElementById('mgGoalShareable').checked;
   if (!goalId) {
     const id = 'g_'+uid();
-    GOALS.push({ id, title, category, notes, dueDate, target, importance, valueIds, cadenceMode, checkinCadence, shareWithPartner, createdDate: today(), subGoals:[] });
+    GOALS.push({ id, title, category, goalType, notes, dueDate, target, importance, valueIds, cadenceMode, checkinCadence, shareWithPartner, createdDate: today(), subGoals:[] });
     saveGoals();
     openEditGoal(id);
   } else {
-    Object.assign(findGoal(goalId), { title, category, notes, dueDate, target, importance, valueIds, cadenceMode, checkinCadence, shareWithPartner });
+    Object.assign(findGoal(goalId), { title, category, goalType, notes, dueDate, target, importance, valueIds, cadenceMode, checkinCadence, shareWithPartner });
     saveGoals();
     openManageGoals();
   }
@@ -3403,7 +3419,7 @@ function saveGoalCheckin(goalId, subGoalId) {
   save(SK.goalCheckins, list);
   if (nextStep) {
     const actions = load(SK.actions);
-    actions.push({ id:uid(), createdDate:today(), description:nextStep, dueDate:'', completed:false, completedDate:null, context:'Goals', notes:'' });
+    actions.push({ id:uid(), createdDate:today(), description:nextStep, dueDate:'', completed:false, completedDate:null, context:'Goals', notes:'', goalId: goalId });
     save(SK.actions, actions);
   }
   closeModal(); renderView(currentView);
@@ -3998,7 +4014,7 @@ function parseRoadmapReply(text) {
       const dt = rmStr(it && it.date, 10);
       return { id: uid(), type, name, fit: rmStr(it && it.fit, 400), url: rmUrl(it && it.url), when: rmStr(it && it.when, 120),
         date: /^\d{4}-\d{2}-\d{2}$/.test(dt) ? dt : '', cost: rmStr(it && it.cost, 60), where: rmStr(it && it.where, 120), source: rmStr(it && it.source, 120),
-        checked: rmStr(it && it.checked, 5).toLowerCase() === 'yes', status: 'explore', saved: false, added: t };
+        checked: rmStr(it && it.checked, 5).toLowerCase() === 'yes', status: 'explore', saved: false, added: t, isNew: true };
     }).filter(it => it.name)
   })).filter(n => n.title);
   if (!needs.length) return { error:'The data was readable but contained no usable needs, so nothing was imported.' };
@@ -4012,8 +4028,9 @@ function rmMerge(old, inc, mode) {
   const t = today();
   const out = old ? JSON.parse(JSON.stringify(old)) : { version:2, created:t, summary:'', needs:[], connect:[], steps:[] };
   let added = 0, updated = 0;
+  out.needs.forEach(n => n.items.forEach(it => { it.isNew = false; }));
   if (old && mode === 'fresh') {
-    out.needs = out.needs.map(n => Object.assign({}, n, { items: n.items.filter(it => it.saved || it.status === 'planned' || it.status === 'done') })).filter(n => n.items.length);
+    out.needs = out.needs.map(n => Object.assign({}, n, { items: n.items.filter(it => it.saved || it.status === 'planned' || it.status === 'done' || it.status === 'dropped') })).filter(n => n.items.length);
     out.created = t;
   }
   const index = {}; out.needs.forEach(n => n.items.forEach(it => { index[rmItemKey(it)] = it; }));
@@ -4062,14 +4079,35 @@ function rmDoImport() {
   const m = rmMerge(old, r.roadmap, mode);
   if (old) saveRoadmapPrev(old);
   saveRoadmap(m.roadmap);
-  rmNotice = `Added ${m.added} new item${m.added === 1 ? '' : 's'}${m.updated ? ` and refreshed ${m.updated} you already had` : ''}.${old ? ' Your previous roadmap is kept: use “Restore previous” if you want it back.' : ''}`;
-  rmUI.tab = 'need'; rmUI.filter = 'all';
+  rmNotice = `Added ${m.added} new item${m.added === 1 ? '' : 's'}${m.updated ? ` and refreshed ${m.updated} you already had` : ''}.${m.added ? ' They are marked New.' : ''}${old ? ' Your previous roadmap is kept: use “Restore previous” if you want it back.' : ''}`;
+  rmUI.tab = 'need'; rmUI.filter = 'all'; rmUI.f = { types:[], need:'', cost:'', format:'', when:'', checked:'' };
   closeModal();
   if (currentView !== 'roadmap') showView('roadmap'); else rmRefresh();
 }
 
 // ── Showing it ──
-let rmUI = { tab:'need', filter:'all', open:{} }, rmNotice = '';
+let rmUI = { tab:'need', filter:'all', open:{}, panel:false, f:{ types:[], need:'', cost:'', format:'', when:'', checked:'' } }, rmNotice = '';
+function rmIsNew(it) { return !!it.isNew && !it.seen && !!it.added && rmDaysTo(it.added) >= -7; }
+function rmIsOnline(it) { return /\b(online|virtual|remote|webinar|zoom)\b/i.test(it.where || ''); }
+function rmIsFree(it) { return /\bfree\b/i.test(it.cost || '') || /^\s*£?0(\.00)?\s*$/.test(it.cost || ''); }
+function rmFilterCount() { const f = rmUI.f; return (f.types.length ? 1 : 0) + ['need','cost','format','when','checked'].filter(k => f[k]).length; }
+// Extra filters from the Filters panel. Items with nothing stated for a field are left out when that field is filtered.
+function rmExtraPass(it, need) {
+  const f = rmUI.f;
+  if (f.types.length && !f.types.includes(it.type)) return false;
+  if (f.need && need.title !== f.need) return false;
+  if (f.cost === 'free' && !rmIsFree(it)) return false;
+  if (f.cost === 'paid' && (!it.cost || rmIsFree(it))) return false;
+  if (f.format === 'online' && !rmIsOnline(it)) return false;
+  if (f.format === 'inperson' && (!it.where || (rmIsOnline(it) && !/in[- ]person/i.test(it.where)))) return false;
+  if (f.when) { const d = it.date ? rmDaysTo(it.date) : null;
+    if (f.when === 'soon' && !(d !== null && d >= 0 && d <= 30)) return false;
+    if (f.when === 'later' && !(d !== null && d > 30)) return false;
+    if (f.when === 'none' && d !== null) return false; }
+  if (f.checked === 'yes' && !it.checked) return false;
+  if (f.checked === 'no' && it.checked) return false;
+  return true;
+}
 const rmId = it => String(it.id).replace(/[^\w-]/g, '');
 const rmIsPast = it => !!it.date && it.date < today();
 function rmShortDate(d) {
@@ -4084,6 +4122,7 @@ function rmVisible(it, tab, filter) {
   if (rmIsPast(it) !== (tab === 'past')) return false;
   if (filter === 'all') return it.status !== 'dropped';
   if (filter === 'saved') return !!it.saved && it.status !== 'dropped';
+  if (filter === 'new') return rmIsNew(it) && it.status !== 'dropped';
   return it.status === filter;
 }
 function rmCounts(r) {
@@ -4113,6 +4152,7 @@ function rmRowHtml(it) {
       <button class="rm-star${it.saved ? ' on' : ''}" onclick="event.stopPropagation();rmToggleSave('${id}')" aria-label="${it.saved ? 'Saved: tap to unsave' : 'Keep this'}" title="${it.saved ? 'Saved' : 'Keep this'}">${it.saved ? '★' : '☆'}</button>
       <span class="tag">${escapeHtml(it.type)}</span>
       <span class="rm-name${it.status === 'dropped' ? ' dropped' : ''}">${escapeHtml(it.name)}</span>
+      ${rmIsNew(it) ? '<span class="rm-new">New</span>' : ''}
       ${when ? `<span class="rm-when">${escapeHtml(when)}</span>` : ''}
       <span class="rm-pill rm-${it.status}">${stat}</span>
       <span class="rm-caret">${open ? '▴' : '▾'}</span>
@@ -4120,8 +4160,8 @@ function rmRowHtml(it) {
 }
 function rmTabContent(r) {
   const tab = rmUI.tab, f = rmUI.filter;
-  const pairs = rmPairs(r).filter(p => rmVisible(p.it, tab, f));
-  const none = '<div class="empty-state" style="padding:1rem 0;text-align:left">Nothing matches this view. Try another filter.</div>';
+  const pairs = rmPairs(r).filter(p => rmVisible(p.it, tab, f) && rmExtraPass(p.it, p.n));
+  const none = `<div class="empty-state" style="padding:1rem 0;text-align:left">Nothing matches this view. Try another filter${rmFilterCount() ? ' or clear the extra filters' : ''}.</div>`;
   if (tab === 'connect') {
     const c = r.connect.map((c, i) => `<div class="rm-row"><div style="padding:8px 0;display:flex;gap:8px;align-items:flex-start">
         <div style="flex:1"><div style="font-weight:500;font-size:14px">${escapeHtml(c.kind)}</div><div style="font-size:13px;color:var(--text2)">${escapeHtml(c.who)}</div>
@@ -4145,7 +4185,7 @@ function rmTabContent(r) {
     const und = pairs.filter(p => !p.it.date).map(p => p.it);
     return months.map(g => group(g.m, '', g.items)).join('') + (und.length ? group('No set date', 'Books, podcasts and other things you can start any time.', und) : '');
   }
-  return r.needs.map(n => { const its = n.items.filter(it => rmVisible(it, tab, f)); return its.length ? group(n.title, n.why, its) : ''; }).join('');
+  return r.needs.map(n => { const its = n.items.filter(it => rmVisible(it, tab, f) && rmExtraPass(it, n)); return its.length ? group(n.title, n.why, its) : ''; }).join('');
 }
 function rmUpNextHtml(r) {
   const live = rmPairs(r).map(p => p.it).filter(it => it.status !== 'dropped' && !rmIsPast(it));
@@ -4176,14 +4216,14 @@ function renderRoadmap() {
   }
   const c = rmCounts(r);
   const tabs = [['need','By need'],['type','By type'],['date','By date'],['connect','Connect'],['past','Past' + (c.past ? ` (${c.past})` : '')]];
-  const filters = [['all','All'],['saved','★ Saved'],['explore','To explore'],['planned','Planned'],['done','Done'],['dropped','Dropped']];
+  const filters = [['all','All'],['new','New'],['saved','★ Saved'],['explore','To explore'],['planned','Planned'],['done','Done'],['dropped','Dropped']];
   const showFilters = rmUI.tab !== 'connect';
   el.innerHTML = head + `<div class="card">${buttons}
       <div class="updated-row" style="margin-top:.75rem">Started ${escapeHtml(fmtDate(r.created))}${r.updated && r.updated !== r.created ? `, last updated ${escapeHtml(fmtDate(r.updated))}` : ''}. Details were found by Claude when you imported them, so check dates and prices before booking.</div>
       ${r.summary ? `<p style="font-size:13px;color:var(--text2);margin:.5rem 0 0">${escapeHtml(r.summary)}</p>` : ''}</div>${notice}
     ${rmUpNextHtml(r)}
     <div class="rm-tabs">${tabs.map(([id, l]) => `<button class="rm-tab${rmUI.tab === id ? ' on' : ''}" onclick="rmSetTab('${id}')">${l}</button>`).join('')}</div>
-    ${showFilters ? `<div class="chip-row" style="margin:8px 0 0">${filters.map(([id, l]) => `<span class="chip suggest ${rmUI.filter === id ? 'selected' : ''}" onclick="rmSetFilter('${id}')">${l}</span>`).join('')}</div>` : ''}
+    ${showFilters ? `<div class="chip-row" style="margin:8px 0 0">${filters.map(([id, l]) => `<span class="chip suggest ${rmUI.filter === id ? 'selected' : ''}" onclick="rmSetFilter('${id}')">${l}</span>`).join('')}<span class="chip ${rmFilterCount() ? 'selected' : ''}" onclick="rmTogglePanel()" style="margin-left:auto">Filters${rmFilterCount() ? ' (' + rmFilterCount() + ')' : ''} ${rmUI.panel ? '▴' : '▾'}</span></div>${rmUI.panel ? rmPanelHtml(r) : ''}` : ''}
     <div class="card" style="margin-top:.75rem;padding-top:.25rem">${rmTabContent(r)}</div>
     <div style="text-align:right;margin-top:.5rem"><button class="btn btn-secondary btn-sm" onclick="rmRemove()">Remove whole roadmap</button></div>`;
 }
@@ -4202,9 +4242,31 @@ function rmRefresh() {
   const el = document.getElementById('rmCard'); if (el) el.innerHTML = rmCardHtml();
   if (currentView === 'roadmap') renderRoadmap();
 }
+function rmPanelHtml(r) {
+  const f = rmUI.f; const types = RM_TYPES.filter(t => rmPairs(r).some(p => p.it.type === t));
+  const sel = (k, label, opts) => `<label style="display:flex;flex-direction:column;gap:3px;font-size:13px">${label}<select onchange="rmSetF('${k}', this.value)">${opts.map(([v, l]) => `<option value="${escapeHtml(v)}" ${f[k] === v ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('')}</select></label>`;
+  return `<div class="card" style="margin-top:8px"><div style="font-size:13px;margin-bottom:2px">Type</div>
+    <div class="chip-row" style="margin-top:2px">${types.map(t => `<span class="chip suggest ${f.types.includes(t) ? 'selected' : ''}" onclick="rmToggleType(${JSON.stringify(t).replace(/"/g, '&quot;')})">${escapeHtml(t)}</span>`).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px">
+      ${sel('need', 'Need', [['', 'Any'], ...r.needs.map(n => [n.title, n.title.length > 40 ? n.title.slice(0, 40) + '…' : n.title])])}
+      ${sel('cost', 'Cost', [['', 'Any'], ['free', 'Free'], ['paid', 'Paid']])}
+      ${sel('format', 'Format', [['', 'Any'], ['online', 'Online'], ['inperson', 'In person']])}
+      ${sel('when', 'When', [['', 'Any'], ['soon', 'Next 30 days'], ['later', 'Later'], ['none', 'No set date']])}
+      ${sel('checked', 'Checked by Claude', [['', 'Any'], ['yes', 'Checked'], ['no', 'Needs checking']])}
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><span style="font-size:12px;color:var(--text3)">Items with nothing stated for a field are left out when you filter on it.</span><button class="btn btn-secondary btn-sm" onclick="rmClearF()">Clear</button></div></div>`;
+}
+function rmTogglePanel() { rmUI.panel = !rmUI.panel; renderRoadmap(); }
+function rmToggleType(t) { const a = rmUI.f.types; const i = a.indexOf(t); if (i > -1) a.splice(i, 1); else a.push(t); renderRoadmap(); }
+function rmSetF(k, v) { rmUI.f[k] = v; renderRoadmap(); }
+function rmClearF() { rmUI.f = { types:[], need:'', cost:'', format:'', when:'', checked:'' }; renderRoadmap(); }
 function rmSetTab(t) { rmUI.tab = t; renderRoadmap(); }
 function rmSetFilter(f) { rmUI.filter = f; renderRoadmap(); }
-function rmToggle(id) { rmUI.open[id] = !rmUI.open[id]; renderRoadmap(); }
+function rmToggle(id) {
+  rmUI.open[id] = !rmUI.open[id];
+  if (rmUI.open[id]) { const r = getRoadmap(); let ch = false; if (r) { r.needs.forEach(n => n.items.forEach(it => { if (rmId(it) === id && it.isNew && !it.seen) { it.seen = true; ch = true; } })); if (ch) saveRoadmap(r); } }
+  renderRoadmap();
+}
 function rmGoTo(id) {
   const r = getRoadmap(); if (!r) return;
   const p = rmPairs(r).find(x => rmId(x.it) === id); if (!p) return;
@@ -4277,15 +4339,15 @@ function renderWSC() {
       <div style="font-weight:500;margin-bottom:.5rem">Accountability partner sharing</div>
       <p style="font-size:13px;color:var(--text3);margin-bottom:.5rem">Off by default. If turned on, your accountability partner snapshot notes the trend only — rising, steady, or dipped — never the actual score.</p>
       <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer">
-        <input type="checkbox" ${wsGet(SK.shareTrendWill)?'checked':''} onchange="wsSet(SK.shareTrendWill, this.checked)">
+        <input type="checkbox" ${shareTrendOn(SK.shareTrendWill)?'checked':''} onchange="wsSet(SK.shareTrendWill, this.checked ? '1' : '')">
         Include Will's trend
       </label>
       <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer">
-        <input type="checkbox" ${wsGet(SK.shareTrendSkill)?'checked':''} onchange="wsSet(SK.shareTrendSkill, this.checked)">
+        <input type="checkbox" ${shareTrendOn(SK.shareTrendSkill)?'checked':''} onchange="wsSet(SK.shareTrendSkill, this.checked ? '1' : '')">
         Include Skill's trend
       </label>
       <label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px;cursor:pointer">
-        <input type="checkbox" ${wsGet(SK.shareTrendConnectivity)?'checked':''} onchange="wsSet(SK.shareTrendConnectivity, this.checked)">
+        <input type="checkbox" ${shareTrendOn(SK.shareTrendConnectivity)?'checked':''} onchange="wsSet(SK.shareTrendConnectivity, this.checked ? '1' : '')">
         Include Connectivity's trend
       </label>
     </div>
@@ -4387,7 +4449,7 @@ function saveDimSession(dim, label) {
   save(key, sessions);
   if (notes && document.getElementById('dimNoteAsAction')?.checked) {
     const actions = load(SK.actions);
-    actions.push({ id:uid(), createdDate:today(), description:notes, dueDate:'', completed:false, completedDate:null, context:label, notes:'' });
+    actions.push({ id:uid(), createdDate:today(), description:notes, dueDate:'', completed:false, completedDate:null, context:label, notes:'From the ' + label + ' check-in' });
     save(SK.actions, actions);
   }
   closeModal(); renderView(currentView);
@@ -4504,7 +4566,7 @@ function saveSkillCheckin(skillId) {
   if (note && document.getElementById('skNoteAsAction')?.checked) {
     const sk = SKILLS.find(x=>x.id===skillId);
     const actions = load(SK.actions);
-    actions.push({ id:uid(), createdDate:today(), description:note, dueDate:'', completed:false, completedDate:null, context:'Skill', notes:'' });
+    actions.push({ id:uid(), createdDate:today(), description:note, dueDate:'', completed:false, completedDate:null, context:'Skill', notes: sk ? 'About the skill: ' + sk.label : '', valueIds: (sk && sk.valueIds) || [] });
     save(SK.actions, actions);
   }
   closeModal(); renderView(currentView);
@@ -4744,6 +4806,31 @@ function renderScratchpad() {
 }
 function setScratchpadFilter(f) { scratchpadFilter = f; renderScratchpad(); }
 
+function openQuickCapture() {
+  openModal('Jot it down', `<p style="font-size:13px;color:var(--text2);margin-bottom:.5rem">A thought, a challenge, an idea. It goes onto your Scratchpad, to sort out later.</p>
+    <textarea id="qcText" placeholder="Nothing else needed yet" style="min-height:90px"></textarea><div id="qcDone" style="font-size:13px;color:var(--accent);min-height:18px;margin-top:6px"></div>`,
+    `<button class="btn btn-secondary" onclick="closeModal()">Close</button>
+     <button class="btn btn-secondary" onclick="saveQuickCapture(true)">Save & add another</button>
+     <button class="btn btn-primary" onclick="saveQuickCapture(false)">Save & done</button>`);
+  setTimeout(() => { const t = document.getElementById('qcText'); if (t) t.focus(); }, 50);
+}
+function saveQuickCapture(another) {
+  const t = document.getElementById('qcText'); const text = t ? t.value.trim() : '';
+  if (!text) { if (!another) closeModal(); return; }
+  scratchpadAdd(text);
+  if (another) { t.value = ''; document.getElementById('qcDone').textContent = '✓ Added to your Scratchpad'; t.focus(); }
+  else { closeModal(); if (currentView === 'scratchpad') renderScratchpad(); }
+}
+function scratchpadAdd(text) {
+  const items = load(SK.scratchpad);
+  items.push({
+    id:uid(), date:today(), text,
+    category:null, timing:null, priority:null,
+    benefits:'', outcome:null, outcomeText:'', rationale:'', notes:'',
+    linkedGoalId:null, linkedSubGoalId:null, linkedActionId:null, linkedLearningId:null,
+  });
+  save(SK.scratchpad, items);
+}
 function addScratchpadItem() {
   const text = document.getElementById('scratchpadNewText').value.trim();
   if (!text) return;
@@ -4845,7 +4932,7 @@ function scratchpadBecomeGoal(id) {
   const items = load(SK.scratchpad);
   const item = items.find(i=>i.id===id); if (!item) return;
   if (item.linkedGoalId) return;
-  const newGoal = { id:'g_'+uid(), title:item.text, category:GOAL_CATEGORIES[0], notes:'', dueDate:'', target:null, subGoals:[] };
+  const newGoal = { id:'g_'+uid(), title:item.text, category:'', notes:'', dueDate:'', target:null, subGoals:[] };
   GOALS.push(newGoal);
   saveGoals();
   item.outcome = 'goal'; item.linkedGoalId = newGoal.id;
@@ -5413,7 +5500,7 @@ function openHabitLookBack(id) {
     <div class="field-group"><label class="field-label">Where does it stand now?</label>
       <select id="lbStatus">${HABIT_STATUSES.map(s=>`<option value="${s.id}" ${h.status===s.id?'selected':''}>${s.label}</option>`).join('')}</select></div>
     <div class="field-group"><label class="field-label">Next review date <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
-      <input type="date" id="lbReview" value="${addDaysIso(today(), HABIT_DEFAULT_REVIEW_DAYS)}"></div>`;
+      <input type="date" id="lbReview" value="${(h.reviewDate && h.reviewDate > today()) ? h.reviewDate : addDaysIso(today(), HABIT_DEFAULT_REVIEW_DAYS)}"></div>`;
   openModal(`Look back — ${escapeHtml(habitTitle(h))}`, body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
      <button class="btn btn-secondary" onclick="saveHabitLookBack('${id}', true)">Save and make it an action</button>
@@ -5428,7 +5515,7 @@ function saveHabitLookBack(id, makeAction) {
   h.reviewDate = document.getElementById('lbReview').value || '';
   save(SK.habits, habits);
   closeModal();
-  if (makeAction) { openAddAction({ description: text || `Next step for: ${h.label}` }); return; }
+  if (makeAction) { openAddAction({ description: text || `Next step for: ${h.label}`, goalId: (h.goalIds||[])[0] || '', valueIds: h.valueIds || [] }); return; }
   renderHabits();
 }
 
@@ -5499,7 +5586,7 @@ function setLearningSort(s) { learningSort = s; renderLearnings(); }
 
 function openAddAction(prefill) {
   const desc = prefill?.description || '';
-  const goalId = prefill?.goalId || '';
+  const goalId = prefill?.goalId || ''; const preValues = prefill?.valueIds || [];
   const body = `
     <div class="field-group"><label class="field-label">What's the small step?</label><textarea id="acDesc" placeholder="Keep it small and realistic">${escapeHtml(desc)}</textarea></div>
     <div class="field-group"><label class="field-label">Rough date <span style="font-weight:400;color:var(--text3)">(optional, no pressure)</span></label><input type="date" id="acDue"></div>
@@ -5510,7 +5597,7 @@ function openAddAction(prefill) {
       <select id="acGoal">${relatedGoalOptionsHtml(goalId)}</select>
     </div>
     <div class="field-group"><label class="field-label">Linked value(s) <span style="font-weight:400;color:var(--text3)">(optional, tap any that fit)</span></label>
-      ${valueChipRowHtml('acValueIds', [])}
+      ${valueChipRowHtml('acValueIds', preValues)}
     </div>
     <div class="field-group"><label class="field-label">Importance <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
       <select id="acImportance">${IMPORTANCE_LEVELS.map(lvl=>`<option value="${lvl||''}">${importanceLabel(lvl)}</option>`).join('')}</select>
@@ -5940,8 +6027,8 @@ function openConvertLearningChoice(learningId) {
   const body = `<p style="font-size:13px;color:var(--text2);margin-bottom:1rem">The Learning itself stays exactly as it is — this creates a new, separate Energiser or Drainer alongside it, starting from the same description.</p>`;
   openModal('Convert to…', body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-     <button class="btn btn-secondary" onclick="closeModal(); openEditEnergiserDrainer('drainer', null, '${learningId}', ${JSON.stringify(l.description)})">🔋 Drainer</button>
-     <button class="btn btn-primary" onclick="closeModal(); openEditEnergiserDrainer('energiser', null, '${learningId}', ${JSON.stringify(l.description)})">⚡ Energiser</button>`);
+     <button class="btn btn-secondary" onclick="closeModal(); openEditEnergiserDrainer('drainer', null, '${learningId}', ${escapeHtml(JSON.stringify(l.description))})">🔋 Drainer</button>
+     <button class="btn btn-primary" onclick="closeModal(); openEditEnergiserDrainer('energiser', null, '${learningId}', ${escapeHtml(JSON.stringify(l.description))})">⚡ Energiser</button>`);
 }
 function promptEditConvertedLearning(learningId, type) {
   const body = `<p style="font-size:13px;color:var(--text2)">This has been added as ${type==='energiser'?'an Energiser':'a Drainer'}. The original Learning is still exactly as it was — worth going back and rewording it to focus on what you learned from noticing this, now that the action itself is captured separately.</p>`;
@@ -5950,16 +6037,43 @@ function promptEditConvertedLearning(learningId, type) {
      <button class="btn btn-primary" onclick="closeModal(); openEditLearning('${learningId}')">Edit this Learning now</button>`);
 }
 
-function buildScenarioContext() {
+function buildScenarioContext(opts) {
+  opts = opts || {};
   const lines = [];
   lines.push(`# Being and Becoming — Snapshot (${fmtDate(today())})`);
   lines.push('');
   lines.push('This is a snapshot of my personal reflective log (Being and Becoming). Please use it as context for the question that follows.');
   lines.push('');
+  if (opts.patterns) {
+    lines.push('Where it is relevant to my question, please also tell me which of my qualities, styles, behaviours, saboteurs, energisers and drainers may be showing up in, or affecting, the situation I describe. For each one, quote the item, say why you think it may apply, and suggest one question I could ask myself. Treat these as possibilities rather than diagnoses, do not invent patterns that the snapshot does not support, and tell me plainly if nothing seems to fit.');
+    lines.push('');
+  }
 
-  // Personal Traits
+  // Personal Traits. In "patterns" mode everything recorded is included (not only items marked important),
+  // with importance noted, so Claude can notice a pattern the person has not flagged.
   const flagged = TRAITS.filter(t=>t.importance);
-  if (flagged.length) {
+  if (opts.patterns && TRAITS.length) {
+    const cut = (x, n) => { x = String(x || '').replace(/\s+/g, ' ').trim(); return x.length > n ? x.slice(0, n).trim() + '…' : x; };
+    lines.push('## Qualities, styles and saboteurs — everything I have recorded');
+    TRAIT_CATEGORIES.forEach(cat => {
+      const items = TRAITS.filter(t=>t.category===cat.id);
+      if (!items.length) return;
+      lines.push(`${cat.label}:`);
+      items.forEach(t => {
+        const bits = [];
+        if (t.importance) bits.push(importanceLabel(t.importance).toLowerCase());
+        if (t.priority!=null) bits.push(`priority #${t.priority}`);
+        if (t.score!=null) bits.push(`${t.score}/10`);
+        if (t.percent!=null) bits.push(`${t.percent}%`);
+        if (t.presence!=null || t.search!=null) bits.push(`Presence ${t.presence ?? '—'}, Search ${t.search ?? '—'}`);
+        let line = `- ${t.label}${bits.length?` (${bits.join('; ')})`:''}`;
+        if (t.notes) line += ` — in my words: ${cut(t.notes, 300)}`;
+        if (t.saboteurAbuse) line += ` — when it takes over: ${cut(t.saboteurAbuse, 220)}`;
+        lines.push(line);
+      });
+    });
+    lines.push('');
+  } else if (flagged.length) {
     lines.push('## Qualities & Styles currently resonating');
     TRAIT_CATEGORIES.forEach(cat => {
       const items = flagged.filter(t=>t.category===cat.id);
@@ -6052,9 +6166,31 @@ function buildScenarioContext() {
     lines.push('');
   }
 
-  // How I like to learn and connect
-  const lcLines = learnConnectSummaryLines();
-  if (lcLines.length) { lines.push('## How I like to learn and connect'); lcLines.forEach(l=>lines.push(l)); lines.push(''); }
+  // Current focus (starred items) and the latest answers to the coaching questions about them
+  const focusNow = load(SK.focusItems).map(f => ({ ...f, label: focusItemLabel(f.type, f.id) })).filter(f => f.label);
+  if (focusNow.length) {
+    lines.push('## What I am focusing on now (items I have starred)');
+    const allCtx = load(SK.contextAnswers);
+    focusNow.forEach(f => {
+      lines.push(`- ${f.label} (${FOCUS_TYPE_LABELS[f.type] || f.type})`);
+      const seenQ = {};
+      [...allCtx].filter(a => a.type === f.type && a.itemId === f.id).sort((a,b) => (b.date||'').localeCompare(a.date||'')).forEach(a => {
+        if (seenQ[a.questionId]) return; seenQ[a.questionId] = 1;
+        const q = CONTEXT_QUESTIONS.find(x => x.id === a.questionId);
+        if (q && a.answer) lines.push(`    - ${q.text} ${String(a.answer).replace(/\s+/g, ' ').trim().slice(0, 300)}`);
+      });
+    });
+    lines.push('');
+  }
+
+  // How I like to learn and connect (and practicalities for learning)
+  const lcLines = learnConnectSummaryLines(); const prLines = practicalLines();
+  if (lcLines.length || prLines.length) {
+    lines.push('## How I like to learn and connect');
+    lcLines.forEach(l=>lines.push(l));
+    if (prLines.length) { lines.push('Practicalities for learning:'); prLines.forEach(l=>lines.push(l)); }
+    lines.push('');
+  }
 
   // Goal Relevance
   const goalIds = [...new Set(RELEVANCE_CRITERIA.map(r=>r.goalId))];
@@ -6442,7 +6578,7 @@ function buildShareProgressText(sinceLastShare) {
     if (t) trendLines.push(`  - ${v.label} (value) has been ${t} lately`);
   });
   [['will','Will'],['skill','Skill'],['connectivity','Connectivity']].forEach(([key,label]) => {
-    if (wsGet(SK['shareTrend'+label])) {
+    if (shareTrendOn(SK['shareTrend'+label])) {
       const t = dimTrend(key);
       if (t) trendLines.push(`  - ${label} has been ${t} lately`);
     }
@@ -6478,11 +6614,18 @@ function copyShareProgress(sinceLastShare, evt) {
   if (btn) { const old = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>{ btn.textContent = old; }, 1500); }
 }
 
+let scnPatterns = true;
+function scnTogglePatterns(on) {
+  scnPatterns = !!on;
+  const ta = document.getElementById('scenarioContextText'); if (ta) ta.value = buildScenarioContext({ patterns: scnPatterns });
+}
 function openScenarioContextModal() {
-  const text = buildScenarioContext();
+  const text = buildScenarioContext({ patterns: scnPatterns });
   const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const body = `
     <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Copy this, paste it at the start of a new Claude conversation, and add your question underneath.</p>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-bottom:.75rem;cursor:pointer"><input type="checkbox" id="scnPatternsBox" ${scnPatterns?'checked':''} onchange="scnTogglePatterns(this.checked)" style="margin-top:3px">
+      <span><strong>Ask Claude to spot where my patterns may be showing up</strong><br><span style="color:var(--text3)">Adds a request to point out which of your qualities, styles and saboteurs may be at work in your question, and includes everything you have recorded in Qualities &amp; Styles, not only what you have marked important. Switch it off if you would rather not share that.</span></span></label>
     <textarea id="scenarioContextText" readonly style="width:100%;height:320px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5">${escaped}</textarea>`;
   openModal('Snapshot', body,
     `<button class="btn btn-secondary" onclick="closeModal()">Close</button>
@@ -6498,9 +6641,9 @@ function copyScenarioContext() {
 
 function exportExcel() {
   const wb = XLSX.utils.book_new();
-  const gRows = [['Goal','Sub-goal','Category','Notes','Target']];
+  const gRows = [['Goal','Sub-goal','Category','Notes','Target','Type','Importance','Rough timeframe','Linked value(s)']];
   GOALS.forEach(g => {
-    gRows.push([g.title, '', g.category||'', g.notes||'', g.target ?? '']);
+    gRows.push([g.title, '', g.category||'', g.notes||'', g.target ?? '', g.goalType||'', importanceLabel(g.importance), g.dueDate||'', (g.valueIds||[]).map(vid=>VALUES.find(v=>v.id===vid)?.label).filter(Boolean).join('; ')]);
     g.subGoals.forEach(sg => gRows.push([g.title, sg.title, '', sg.notes||'', sg.target ?? '']));
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(gRows), 'Goals');
@@ -6512,7 +6655,7 @@ function exportExcel() {
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(gcRows), 'Goal Check-ins');
 
-  const vRows = [['Value','Type']]; VALUES.forEach(v=>vRows.push([v.label,v.type]));
+  const vRows = [['Value','Type','Importance','Notes','Archived']]; VALUES.forEach(v=>vRows.push([v.label,v.type,importanceLabel(v.importance),v.notes||'',v.archived?'Yes':'']));
   const vcRows = [['Date','Value','Rating','Note']];
   load(SK.valueScores).forEach(c => { const v=VALUES.find(x=>x.id===c.valueId); vcRows.push([c.date, v?.label||'', c.value, c.note||'']); });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([...vRows,[''],...vcRows]), 'Values');
@@ -6523,10 +6666,11 @@ function exportExcel() {
   });
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wRows), 'Skill-Will-Connectivity');
 
-  const trRows = [['Category','Trait','Notes','Importance','Priority','Score','Percent','Presence','Search']];
+  const trRows = [['Category','Trait','Notes','Importance','Priority','Score','Percent','Presence','Search','Sage strength','When it takes over','Description']];
   TRAITS.forEach(t => trRows.push([
     TRAIT_CATEGORIES.find(c=>c.id===t.category)?.label||'', t.label, t.notes||'', t.importance||'',
-    t.priority ?? '', t.score ?? '', t.percent ?? '', t.presence ?? '', t.search ?? ''
+    t.priority ?? '', t.score ?? '', t.percent ?? '', t.presence ?? '', t.search ?? '',
+    t.sageStrength || '', t.saboteurAbuse || '', t.viaDescription || t.styleDescription || ''
   ]));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(trRows), 'Qualities & Styles');
 
@@ -6548,8 +6692,8 @@ function exportExcel() {
   load(SK.actions).forEach(a => aRows.push([a.createdDate, a.description, a.context||'', findGoal(a.goalId)?.title||'', (a.valueIds||[]).map(vid=>VALUES.find(v=>v.id===vid)?.label).filter(Boolean).join('; '), importanceLabel(a.importance), a.completed?'Yes':'No', a.completedDate||'', a.notes||'']));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aRows), 'Actions');
 
-  const lRows = [['Date','Description','Category','Related Goal','Linked Value(s)','Importance']];
-  load(SK.learnings).forEach(l => lRows.push([l.date, l.description, l.category||'', goalTitleForDisplay(l.goalId), (l.valueIds||[]).map(vid=>VALUES.find(v=>v.id===vid)?.label).filter(Boolean).join('; '), importanceLabel(l.importance)]));
+  const lRows = [['Date','Description','Category','Related Goal','Linked Value(s)','Importance','Themes']];
+  load(SK.learnings).forEach(l => lRows.push([l.date, l.description, l.category||'', goalTitleForDisplay(l.goalId), (l.valueIds||[]).map(vid=>VALUES.find(v=>v.id===vid)?.label).filter(Boolean).join('; '), importanceLabel(l.importance), (l.themeIds||[]).map(tid=>THEMES.find(t=>t.id===tid)?.label).filter(Boolean).join('; ')]));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lRows), 'Learnings');
 
   const scRows = [['Date','Text','Category','Timing','Priority','Benefits','Outcome','Rationale','Notes']];
@@ -6572,6 +6716,28 @@ function exportExcel() {
   const hchRows = [['Date','Habit','Changed','Before','After']];
   [...load(SK.habitChanges)].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(c => hchRows.push([c.date, load(SK.habits).find(h=>h.id===c.habitId)?.label||'', habitLever(c.lever).label, c.before||'', c.after||'']));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hchRows), 'Habit changes');
+
+  const bsRows = [['Date','What happened','Value','Related goal','Importance']];
+  [...load(SK.brightSpots)].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(b => bsRows.push([b.date, b.description, VALUES.find(v=>v.id===b.valueId)?.label||'', findGoal(b.goalId)?.title||'', importanceLabel(b.importance)]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(bsRows), 'Bright Spots');
+  const edRows = [['Type','Description','Linked value(s)','Importance','Notes']];
+  ENERGISERS_DRAINERS.forEach(e => edRows.push([e.type==='drainer'?'Drainer':'Energiser', e.description, (e.valueIds||[]).map(vid=>VALUES.find(v=>v.id===vid)?.label).filter(Boolean).join('; '), importanceLabel(e.importance), e.notes||'']));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(edRows), 'Energisers & Drainers');
+  const thRows = [['Theme','Description','Learnings in it']];
+  THEMES.forEach(t => thRows.push([t.label, t.description||'', load(SK.learnings).filter(l=>(l.themeIds||[]).includes(t.id)).length]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(thRows), 'Themes');
+  const skRows = [['Skill','Importance','Linked value(s)','Latest rating','Latest check-in']];
+  SKILLS.forEach(k => { const lc = latestCheckin(SK.skillCheckins, 'skillId', k.id); skRows.push([k.label, importanceLabel(k.importance), (k.valueIds||[]).map(vid=>VALUES.find(v=>v.id===vid)?.label).filter(Boolean).join('; '), lc ? lc.value : '', lc ? lc.date : '']); });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(skRows), 'Skills');
+  const skcRows = [['Date','Skill','Rating','Note']];
+  [...load(SK.skillCheckins)].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(c => skcRows.push([c.date, SKILLS.find(k=>k.id===c.skillId)?.label||'', c.value, c.note||'']));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(skcRows), 'Skill check-ins');
+  const lcRows = [['Learn and connect','Detail']];
+  learnConnectSummaryLines().forEach(l => lcRows.push(['Preference', l.replace(/^- /, '')]));
+  practicalLines().forEach(l => lcRows.push(['Practicality', l.replace(/^- /, '')]));
+  const lk = getLearnConnect().likes || {};
+  Object.keys(lk).forEach(k => { if ((lk[k]||[]).length) lcRows.push(['Things I like: ' + k, lk[k].join('; ')]); });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lcRows), 'Learn and connect');
 
   const fhRows = [['Date','Item','Type','Action']];
   [...load(SK.focusHistory)].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(h => fhRows.push([
@@ -6600,6 +6766,7 @@ function buildBackupData() {
     scratchpad:load(SK.scratchpad), scratchpadCategories:SCRATCHPAD_CATEGORIES,
     focusItems:load(SK.focusItems), focusHistory:load(SK.focusHistory), contextAnswers:load(SK.contextAnswers),
     habits:load(SK.habits), habitCheckins:load(SK.habitCheckins), habitChanges:load(SK.habitChanges), learnConnect:getLearnConnect(), roadmap:getRoadmap(), roadmapPrev:getRoadmapPrev(),
+    hiddenTabs:load(SK.hiddenTabs), cadenceBannerDismissed:wsGet(SK.cadenceBannerDismissed)||'',
   };
 }
 // Blob-based download — more reliable across browsers than the older data: URI + click()
@@ -6677,7 +6844,7 @@ function applyRestoreData(data) {
   if (data.tactics) save(SK.tactics, data.tactics);
   if (data.actions) save(SK.actions, data.actions);
   if (data.learnings) save(SK.learnings, data.learnings);
-  if (data.themes) save(SK.themes, data.themes);
+  if (data.themes) { save(SK.themes, data.themes); loadThemes(); }
   if (data.brightSpots) save(SK.brightSpots, data.brightSpots);
   if (data.habits) save(SK.habits, data.habits);
   if (data.habitCheckins) save(SK.habitCheckins, data.habitCheckins);
@@ -6685,6 +6852,8 @@ function applyRestoreData(data) {
   if (data.learnConnect) wsSet(SK.learnConnect, JSON.stringify(data.learnConnect));
   if (data.roadmap) wsSet(SK.roadmap, JSON.stringify(data.roadmap));
   if (data.roadmapPrev) wsSet(SK.roadmapPrev, JSON.stringify(data.roadmapPrev));
+  if (data.hiddenTabs) { save(SK.hiddenTabs, data.hiddenTabs); loadHiddenTabs(); }
+  if (data.cadenceBannerDismissed != null) wsSet(SK.cadenceBannerDismissed, data.cadenceBannerDismissed);
   if (data.scratchpad) save(SK.scratchpad, data.scratchpad);
   if (data.scratchpadCategories) { SCRATCHPAD_CATEGORIES = data.scratchpadCategories; saveScratchpadCategories(); }
   if (data.displayName!=null) setDisplayName(data.displayName);
@@ -6761,6 +6930,7 @@ function snapshotWorkspaceData(wsId) {
     scratchpad: load(SK.scratchpad), scratchpadCategories,
     focusItems: load(SK.focusItems), focusHistory: load(SK.focusHistory), contextAnswers: load(SK.contextAnswers),
     habits: load(SK.habits), habitCheckins: load(SK.habitCheckins), habitChanges: load(SK.habitChanges), learnConnect: getLearnConnect(), roadmap: getRoadmap(), roadmapPrev: getRoadmapPrev(),
+    hiddenTabs: load(SK.hiddenTabs), cadenceBannerDismissed: wsGet(SK.cadenceBannerDismissed) || '',
   };
   ACTIVE_WORKSPACE = prev;
   return data;
@@ -6794,6 +6964,8 @@ function restoreWorkspaceData(wsId, data) {
   if (data.learnConnect) wsSet(SK.learnConnect, JSON.stringify(data.learnConnect));
   if (data.roadmap) wsSet(SK.roadmap, JSON.stringify(data.roadmap));
   if (data.roadmapPrev) wsSet(SK.roadmapPrev, JSON.stringify(data.roadmapPrev));
+  if (data.hiddenTabs) save(SK.hiddenTabs, data.hiddenTabs);
+  if (data.cadenceBannerDismissed != null) wsSet(SK.cadenceBannerDismissed, data.cadenceBannerDismissed);
   if (data.scratchpad) save(SK.scratchpad, data.scratchpad);
   if (data.scratchpadCategories) save(SK.scratchpadCategories, data.scratchpadCategories);
   if (data.displayName!=null) wsSet(SK.displayName, data.displayName);
@@ -6881,8 +7053,11 @@ function handlePasteRestoreAllClick() {
 function clearAllData() {
   if (!confirm('Delete EVERYTHING in this workspace permanently — goals, values, traits, skills, criteria, scratchpad, check-ins, actions, all of it? Download a backup first if you want to keep a copy.')) return;
   if (!confirm('Are you sure? This empties the workspace completely and cannot be undone.')) return;
-  [SK.valueScores, SK.goalCheckins, SK.willSessions, SK.skillSessions, SK.connectivitySessions, SK.skillCheckins, SK.relevanceScores, SK.tactics, SK.actions, SK.learnings, SK.traitNotes, SK.scratchpad, SK.habits, SK.habitCheckins, SK.habitChanges, SK.learnConnect, SK.roadmap, SK.roadmapPrev]
+  [SK.valueScores, SK.goalCheckins, SK.willSessions, SK.skillSessions, SK.connectivitySessions, SK.skillCheckins, SK.relevanceScores, SK.tactics, SK.actions, SK.learnings, SK.traitNotes, SK.scratchpad, SK.habits, SK.habitCheckins, SK.habitChanges, SK.learnConnect, SK.roadmap, SK.roadmapPrev,
+    SK.energisersDrainers, SK.themes, SK.brightSpots, SK.focusItems, SK.focusHistory, SK.contextAnswers, SK.displayName, SK.hiddenTabs,
+    SK.lastSharedDate, SK.cadenceBannerDismissed, SK.goalsGroupCadence, SK.shareTrendWill, SK.shareTrendSkill, SK.shareTrendConnectivity, SK.themes+'_last_organised_count']
     .forEach(k=>wsRemove(k));
+  ENERGISERS_DRAINERS = []; THEMES = []; HIDDEN_TABS = [];
   VALUES = []; saveValues();
   TRAITS = []; saveTraits();
   BEHAVIOURAL = defaultBehavioural(); saveBehavioural();
@@ -7273,6 +7448,11 @@ function deleteFeedbackEntry(id) {
 }
 function feedbackTypeLabel(id) { return (FEEDBACK_TYPES.find(t=>t.id===id)||{}).label || id; }
 function feedbackSectionLabel(id) { return (FEEDBACK_SECTIONS.find(s=>s.id===id)||{}).label || id; }
+function includeFeedbackAgain(id) {
+  const list = loadFeedback(); const f = list.find(x=>x.id===id); if (!f) return;
+  delete f.sentDate; saveFeedback(list);
+  updateFeedbackBadges(); openManageFeedback();
+}
 function openManageFeedback() {
   const list = loadFeedback().slice().sort((a,b)=>b.date.localeCompare(a.date));
   const unsent = list.filter(f=>!f.sentDate).length;
@@ -7288,6 +7468,7 @@ function openManageFeedback() {
           ${f.requested?`<div class="manage-row-meta" style="margin-top:2px;color:var(--text3)">→ ${escapeHtml(f.requested)}</div>`:''}
           <div class="manage-row-meta" style="margin-top:2px;color:var(--text3)">${fmtDate(f.date)}${f.name?` · ${escapeHtml(f.name)}`:''}${f.importance?` · ${importanceLabel(f.importance)}`:''} · ${f.sentDate ? `sent ${fmtDate(f.sentDate)}` : 'not sent yet'}</div>
         </div>
+        ${f.sentDate?`<button class="btn btn-secondary btn-sm" onclick="includeFeedbackAgain('${f.id}')">Include again</button>`:''}
         <button class="btn btn-secondary btn-sm" onclick="openFeedbackForm('${f.id}')">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="deleteFeedbackEntry('${f.id}')">✕</button>
       </div>`).join('') : '<div class="empty-state">No feedback logged yet.</div>'}
