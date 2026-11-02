@@ -403,6 +403,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   <div id="goals" class="view"></div>
   <div id="habits" class="view"></div>
   <div id="roadmap" class="view"></div>
+  <div id="challenges" class="view"></div>
   <div id="wsc" class="view"></div>
   <div id="relevance" class="view"></div>
   <div id="scratchpad" class="view"></div>
@@ -410,7 +411,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   <div id="learnings" class="view"></div>
 </main>
 
-<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261024_v6</span></footer>
+<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261030_v1</span></footer>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalBox">
@@ -701,6 +702,7 @@ const SK = {
   habits:'bb_habits', habitCheckins:'bb_habit_checkins', habitChanges:'bb_habit_changes',
   learnConnect:'bb_learn_connect', roadmap:'bb_roadmap', roadmapPrev:'bb_roadmap_prev',
   imports:'bb_imports',
+  challenges:'bb_challenges',
 };
 
 // Five standard coaching questions used by Snapshot's daily "Today's question" —
@@ -1227,10 +1229,10 @@ function showView(id) {
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  document.querySelector(`[data-view="${id==='roadmap'?'actions':id}"]`)?.classList.add('active');
+  document.querySelector(`[data-view="${(id==='roadmap'||id==='challenges')?'actions':id}"]`)?.classList.add('active');
   currentView = id;
   const label = document.getElementById('navCompactLabel');
-  if (label) label.textContent = NAV_ITEMS.find(n=>n.id===(id==='roadmap'?'actions':id))?.label || ({instructions:'Instructions', relevance:'Goal Relevance'})[id] || '';
+  if (label) label.textContent = NAV_ITEMS.find(n=>n.id===((id==='roadmap'||id==='challenges')?'actions':id))?.label || ({instructions:'Instructions', relevance:'Goal Relevance'})[id] || '';
   renderView(id);
 }
 
@@ -1253,7 +1255,7 @@ function switchNavView(id) {
 function renderView(id) {
   const renders = {
     home: renderHome, instructions: renderInstructions, snapshot: renderSnapshot, values: renderValues, traits: renderTraits,
-    goals: renderGoals, habits: renderHabits, roadmap: renderRoadmap, wsc: renderWSC, relevance: renderRelevance,
+    goals: renderGoals, habits: renderHabits, roadmap: renderRoadmap, challenges: renderChallenges, wsc: renderWSC, relevance: renderRelevance,
     scratchpad: renderScratchpad, actions: renderActions, learnings: renderLearnings,
   };
   if (renders[id]) renders[id]();
@@ -1465,11 +1467,10 @@ function renderInstructions() {
           snapshot: 'Your log at a glance: your values, goals, habits and what matters most to you, with a star to set your current focus and a coaching question about it. From here you can create a snapshot to paste into Claude (with an option to ask Claude to spot where your patterns may be showing up), an update for an accountability partner, a spreadsheet for your own analysis, a look back over the last 12 months, or an import that turns coaching notes or other documents into suggestions for your log (you choose what to add; nothing is ticked to begin with).',
           values: 'A record of the intrinsic and extrinsic values to which you want to stay true. The ability to check in to understand the extent to which you feel you are living by these values.',
           traits: "A reference point for information on your strengths, qualities and styles. In this section, you can capture information from tools and exercises that help you understand yourself better. We've included some links to third-party, public tools whose outputs might be of interest.",
-          actions: 'Two pages in one place, with a switch at the top. Actions holds the small steps you have committed to take to shape your future, and what you learn from them. Roadmap: real, current ways to learn and people to connect with, built from what you have recorded in B&B. B&B prepares a prompt for Claude (with web search on); Claude’s reply comes back here, where you can keep the items you like, plan them, mark them done and print the lot. New suggestions are added rather than replacing what you have, and events move to Past once their date has gone.',
+          actions: 'Three pages in one place, with a switch at the top. Actions holds the small steps you have committed to take to shape your future, and what you learn from them. Roadmap: real, current ways to learn and people to connect with, built from what you have recorded in B&B. B&B prepares a prompt for Claude (with web search on); Claude’s reply comes back here, where you can keep the items you like, plan them, mark them done and print the lot. New suggestions are added rather than replacing what you have, and events move to Past once their date has gone. Solution builder: a guided way to work through a challenge. You describe it, list why it is hard (emotional, rational, practical and other reasons), choose the three that matter most, and think about how each might be eased, with a short set of questions on each stage and more behind “Show more questions”. Each challenge is saved with a status and a date to look again. It ends with a prompt for Claude; Claude’s reply comes back as suggestions you tick one by one. Challenges are never included in the snapshot for your accountability partner.',
           habits: 'Small, repeatable behaviours that support your values and goals. Define a habit using the things that help it stick, then come back to score how you are feeling about it and improve one thing at a time. No targets, streaks or tallies.',
           goals: "A record of your 'big picture' goals across one or more life domains: primary relationships, friends & family, career & work, recreation & fun, finances, faith & spirituality, health & wellness. The ability to track how you're feeling about your goals and your progress towards them. If you wish, you can also add the targets you are working towards. Goal Relevance, reached from the Goals page, lets you set your own criteria for a goal and score different ways of reaching it.",
           scratchpad: "Somewhere to jot down valuable thoughts to revisit later. To not only make sure a thought isn't lost, but to later reflect upon it, understand why it might be important and what to do about it.",
-          actions: "During your use of the tool, this is a place to record small steps you've committed to take to shape your future.",
           learnings: 'A place to capture and refer to helpful learnings. The ability to connect a learning to a current goal or understand when it might be relevant to a future opportunity, challenge or new scenario.',
 
           wsc: 'Three dimensions of how you are doing, each checked in with four short statements and tracked over time: Will (motivation and engagement), Skill (relevance, level and adaptability) and Connectivity (relational capability and collective impact). Alongside them, a record of your core skills and how happy you are with how you are using them.',
@@ -1945,6 +1946,11 @@ function renderSnapshot() {
       <div style="font-weight:500;margin-bottom:.5rem">🗒️ Import from notes or documents</div>
       <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">Turn coaching notes, your own notes, a session transcript or another document into suggestions for your log. You paste the notes into Claude yourself (B&amp;B never sees them), bring Claude's reply back here, and tick only what you want to add. Everything starts unticked, and an import can be removed again in one go.</p>
       <button class="btn btn-primary" onclick="openImportPromptModal()">🗒️ Build an import prompt</button> <button class="btn btn-secondary" onclick="openImportPasteModal()">Paste Claude's reply</button> <button class="btn btn-secondary" onclick="openImportHistory()">Past imports</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:500;margin-bottom:.5rem">🧩 Solution builder</div>
+      <p style="font-size:13px;color:var(--text3);margin-bottom:1rem">Working through a challenge? Describe it, say why it is hard, choose the three reasons that matter most and think about how each might be eased. It ends with a prompt for Claude, and you choose which of Claude's suggestions to keep. Everything stays private to you.</p>
+      <button class="btn btn-primary" onclick="chNew()">🧩 Start a new challenge</button> <button class="btn btn-secondary" onclick="showView('challenges')">My challenges</button>
     </div>
     <div class="card">
       <div style="font-weight:500;margin-bottom:.5rem">🧭 Roadmap</div>
@@ -4837,6 +4843,7 @@ const IMP_SOURCES = [
   { id:'coach', label:'My coach’s notes about me', short:'coaching notes', intro:'These are notes my coach wrote about me and about our sessions together. What the coach observed is the coach’s view, not necessarily mine.' },
   { id:'transcript', label:'A transcript of a session', short:'a session transcript', intro:'This is a transcript of a conversation (for example a coaching session). More than one person may be speaking; I am the person being coached.' },
   { id:'other', label:'Something else (I will explain)', short:'a document', intro:'' },
+  { id:'challenge', label:'A challenge I worked through', short:'a challenge', intro:'', hidden:true },
 ];
 const IMP_TRAIT_CATS = ['strengths','saboteurs','social-style','conflict-style','idol','leadership-type'];
 const IMP_FLAGS = ['sensitive','coach_observation','third_party'];
@@ -5011,10 +5018,11 @@ function buildImportPrompt() {
 
 // ── Step 1: build the prompt ──
 function openImportPromptModal() {
+  if (IMP.source === 'challenge') IMP.source = 'own';
   const body = `
     <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">Turn notes into suggestions for your log. This builds a prompt for Claude. You paste it into a Claude chat with your notes, then bring Claude’s reply back here to choose what to add. <strong>Your notes go to Claude only; B&amp;B never sees them.</strong> Nothing is added until you tick it.</p>
     <div class="field-group"><label class="field-label">What are the notes?</label>
-      <select id="impSource" onchange="impPromptChanged()">${IMP_SOURCES.map(s => `<option value="${s.id}" ${IMP.source === s.id ? 'selected' : ''}>${escapeHtml(s.label)}</option>`).join('')}</select></div>
+      <select id="impSource" onchange="impPromptChanged()">${IMP_SOURCES.filter(s => !s.hidden).map(s => `<option value="${s.id}" ${IMP.source === s.id ? 'selected' : ''}>${escapeHtml(s.label)}</option>`).join('')}</select></div>
     <div class="field-group"><label class="field-label">How many suggestions?</label>
       <select id="impDepth" onchange="impPromptChanged()">${IMP_DEPTHS.map(d => `<option value="${d.id}" ${IMP.depth === d.id ? 'selected' : ''}>${escapeHtml(d.label)}</option>`).join('')}</select></div>
     <div class="field-group" id="impExplainWrap" style="${IMP.source === 'other' ? '' : 'display:none'}"><label class="field-label">What is this document, and what would you like drawn from it?</label>
@@ -5305,7 +5313,7 @@ function openImportReview() {
     ${IMP.sentFlags ? `<p style="font-size:12px;color:var(--text3)">${IMP.sentFlags} suggestion${IMP.sentFlags === 1 ? ' was' : 's were'} left out because ${IMP.sentFlags === 1 ? 'it was' : 'they were'} incomplete.</p>` : ''}`;
   openModal('Choose what to add', body,
     `<span id="impCount" style="font-size:13px;color:var(--text2);margin-right:auto">0 selected</span>
-     <button class="btn btn-secondary" onclick="openImportPasteModal()">Back</button>
+     <button class="btn btn-secondary" onclick="${IMP.source === 'challenge' ? 'chPasteModal()' : 'openImportPasteModal()'}">Back</button>
      <button class="btn btn-primary" id="impAddBtn" onclick="impApply()" disabled>Add selected</button>`);
   impUpdateCount();
 }
@@ -5334,7 +5342,7 @@ function impReadItem(it) {
 // ── Step 4: add what was ticked ──
 function impSourceTag() {
   const s = impSourceInfo();
-  const label = IMP.source === 'own' ? 'From my notes' : IMP.source === 'coach' ? 'From coaching notes' : IMP.source === 'transcript' ? 'From a session transcript' : 'From a document';
+  const label = IMP.source === 'challenge' ? 'From a challenge I worked through' : IMP.source === 'own' ? 'From my notes' : IMP.source === 'coach' ? 'From coaching notes' : IMP.source === 'transcript' ? 'From a session transcript' : 'From a document';
   return label + ', ' + fmtDate(today());
 }
 function impApply() {
@@ -5708,8 +5716,234 @@ function deleteScratchpadCategory(id, returnToItemId) {
 let actionFilter = 'open';
 let learningSort = 'date';
 
+// ═══════════════════════════════════════════════════════════════
+// SOLUTION BUILDER (challenges): work through a challenge, step by step
+// ═══════════════════════════════════════════════════════════════
+const CH_TYPES = [
+  { id:'emotional', label:'Emotional', q:'What feelings come up when you think about this? What are you worried might happen?', short:1 },
+  { id:'rational', label:'Rational', q:'What do you not know, or not yet know how to weigh up?' },
+  { id:'practical', label:'Practical', q:'What are you short of: time, money, skills, energy?' },
+  { id:'relational', label:'Relational', q:'Who is involved, and how might they react?' },
+  { id:'identity', label:'Identity and values', q:'Does solving this clash with how you see yourself or what you value?' },
+  { id:'circumstances', label:'Circumstances', q:'What about the timing, setting or rules makes it hard?' },
+];
+const CH_CONTROL = [['', 'Control?'], ['control', 'In my control'], ['influence', 'I can influence'], ['out', 'Out of my hands']];
+const CH_STATUS = [['working', 'Working on it'], ['eased', 'Eased'], ['parked', 'Parked']];
+const CH_STAGES = ['Describe the challenge', 'Why is it hard?', 'Choose the top three', 'How might each one be eased?', 'Wrap up', 'Take it to Claude'];
+let CH = { id:'', stage:1, more:{}, patterns:true };
+
+function chAll() { return load(SK.challenges); }
+function chGet(id) { return chAll().find(c => c.id === id); }
+function chPut(c) { c.updated = today(); const all = chAll(); const i = all.findIndex(x => x.id === c.id); if (i >= 0) all[i] = c; else all.push(c); save(SK.challenges, all); }
+function chCur() { return chGet(CH.id); }
+function chTitle(c) { const t = (c.title || c.what || '').replace(/\s+/g, ' ').trim(); return t ? (t.length > 70 ? t.slice(0, 69).trim() + '…' : t) : 'A challenge (not described yet)'; }
+function chNew() {
+  const c = { id:'ch_' + uid(), created:today(), updated:today(), stage:1, status:'working', what:'', sorted:'', tried:'', others:'', reasons:[], cost:'', protect:'', top:[], opts:{}, patternsNote:'', review:'' };
+  chPut(c); chOpen(c.id);
+}
+function chOpen(id) {
+  const c = chGet(id); if (!c) return;
+  CH.id = id; CH.stage = c.stage || 1; CH.more = {};
+  chRender();
+}
+function chGo(n) { const c = chCur(); if (!c) return; CH.keepScroll = false; CH.stage = Math.max(1, Math.min(6, n)); c.stage = CH.stage; chPut(c); chRender(); }
+function chSet(k, v) { const c = chCur(); if (!c) return; c[k] = String(v).slice(0, 2000); chPut(c); }
+function chSetOpt(rid, k, v) { const c = chCur(); if (!c) return; c.opts = c.opts || {}; c.opts[rid] = c.opts[rid] || {}; c.opts[rid][k] = String(v).slice(0, 1500); chPut(c); }
+function chToggleMore() { CH.more[CH.stage] = !CH.more[CH.stage]; chRender(); }
+function chAddReason(type) {
+  const el = document.getElementById('chAdd_' + type); const t = el && el.value.trim(); if (!t) return;
+  const c = chCur(); c.reasons = c.reasons || []; c.reasons.push({ id:'r_' + uid(), type, text:t.slice(0, 300), ctl:'' }); chPut(c); chRender(); setTimeout(() => { const e = document.getElementById('chAdd_' + type); if (e) e.focus(); }, 30);
+}
+function chReasonCtl(id, v) { const c = chCur(); const r = c.reasons.find(x => x.id === id); if (r) { r.ctl = v; chPut(c); } }
+function chReasonDel(id) { const c = chCur(); c.reasons = c.reasons.filter(x => x.id !== id); c.top = (c.top || []).filter(x => x !== id); chPut(c); chRender(); }
+function chToggleTop(id, on) {
+  const c = chCur(); c.top = c.top || [];
+  if (on && !c.top.includes(id) && c.top.length < 3) c.top.push(id);
+  if (!on) c.top = c.top.filter(x => x !== id);
+  chPut(c); chRender();
+}
+function chDelete(id) { if (!confirm('Delete this challenge and everything you wrote in it? Anything you added to your log from it stays.')) return; save(SK.challenges, chAll().filter(c => c.id !== id)); renderChallenges(); }
+function chSetStatus(id, v) { const c = chGet(id); if (!c) return; c.status = v; chPut(c); renderChallenges(); }
+
+// Things you have already recorded that may relate to this challenge (matched by wording only)
+function chRelated(c, extra) {
+  const text = [c.what, c.sorted, extra].join(' ');
+  const mine = new Set(impStems(text).filter(s => s.length >= 4));
+  if (!mine.size) return [];
+  const pool = [];
+  load(SK.learnings).forEach(l => pool.push({ kind:'Learning', text:l.description || '', date:l.date }));
+  load(SK.brightSpots).forEach(b => pool.push({ kind:'Bright spot', text:b.description || '', date:b.date }));
+  return pool.map(p => { const st = impStems(p.text).filter(s => s.length >= 4); const common = st.filter(s => mine.has(s)); return Object.assign({ n:new Set(common).size }, p); })
+    .filter(p => p.n >= 2 || (p.n >= 1 && p.text.length < 140)).sort((a, b) => b.n - a.n).slice(0, 3);
+}
+function chQ(label, help, key, rows, ph) {
+  const c = chCur();
+  return `<div class="field-group"><label class="field-label">${escapeHtml(label)}</label>${help ? `<div style="font-size:12px;color:var(--text3);margin:-2px 0 4px">${escapeHtml(help)}</div>` : ''}
+    <textarea rows="${rows || 3}" oninput="chSet('${key}', this.value)" placeholder="${escapeHtml(ph || '')}">${escapeHtml(c[key] || '')}</textarea></div>`;
+}
+function chMoreWrap(n, innerHtml) {
+  const open = !!CH.more[CH.stage];
+  return `<div style="margin-top:.5rem"><button class="btn btn-secondary btn-sm" onclick="chToggleMore()">${open ? 'Show fewer questions' : 'Show ' + n + ' more question' + (n === 1 ? '' : 's')}</button></div>${open ? `<div style="margin-top:.75rem;padding-left:.75rem;border-left:2px solid var(--border)">${innerHtml}</div>` : ''}`;
+}
+function chReasonBlock(t) {
+  const c = chCur(); const rs = (c.reasons || []).filter(r => r.type === t.id);
+  const sab = t.id === 'identity' ? TRAITS.filter(x => x.category === 'saboteurs').slice(0, 5).map(x => x.label).filter(Boolean) : [];
+  return `<div class="field-group"><label class="field-label">${escapeHtml(t.label)}</label>
+    <div style="font-size:12px;color:var(--text3);margin:-2px 0 4px">${escapeHtml(t.q)}${sab.length ? ' You have recorded these saboteurs: ' + escapeHtml(sab.join(', ')) + '. Is one in play here?' : ''}</div>
+    ${rs.map(r => `<div style="display:flex;gap:6px;align-items:center;padding:4px 0;border-bottom:0.5px solid var(--border);font-size:13px"><span style="flex:1">${escapeHtml(r.text)}</span>
+      <select onchange="chReasonCtl('${r.id}', this.value)" style="font-size:12px;max-width:140px">${CH_CONTROL.map(o => `<option value="${o[0]}" ${r.ctl === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
+      <button class="btn btn-secondary btn-sm" onclick="chReasonDel('${r.id}')" title="Remove">×</button></div>`).join('')}
+    <div style="display:flex;gap:6px;margin-top:6px"><input id="chAdd_${t.id}" type="text" maxlength="300" placeholder="Add a reason, in a line" style="flex:1" onkeydown="if(event.key==='Enter'){chAddReason('${t.id}')}"><button class="btn btn-secondary btn-sm" onclick="chAddReason('${t.id}')">Add</button></div></div>`;
+}
+function chStageBody(c) {
+  const s = CH.stage;
+  if (s === 1) {
+    return chQ('What is going on? A few sentences in your own words.', '', 'what', 4, 'e.g. I keep putting off a difficult conversation with a colleague…')
+      + chQ('What would “sorted” look like?', 'Without a destination, “hard” has no meaning.', 'sorted', 3, '')
+      + chMoreWrap(2, chQ('What have you already tried, and what happened?', '', 'tried', 3, '') + chQ('Who else is involved or affected?', 'Use a role or initials if you can. Claude will see this if you take it there.', 'others', 2, ''));
+  }
+  if (s === 2) {
+    const shortT = CH_TYPES.filter(t => t.short || (c.reasons || []).some(r => r.type === t.id)), moreT = CH_TYPES.filter(t => !shortT.includes(t));
+    const more = moreT.map(chReasonBlock).join('') + chQ('What does it cost you to leave it as it is?', '', 'cost', 2, '') + chQ('Is there anything you gain or protect by it staying as it is?', 'It is fine to skip this. Sometimes part of us values the way things are.', 'protect', 2, '');
+    return `<p style="font-size:13px;color:var(--text2)">Add as many one-line reasons as you like. Skip any that do not fit. Mark each as in your control, something you can influence, or out of your hands.</p>`
+      + shortT.map(chReasonBlock).join('') + chMoreWrap(moreT.length + 2, more);
+  }
+  if (s === 3) {
+    const rs = c.reasons || [];
+    if (!rs.length) return `<p style="font-size:13px;color:var(--text2)">Add at least one reason on the previous stage first.</p>`;
+    const full = (c.top || []).length >= 3;
+    return `<div class="field-group"><label class="field-label">Which one, if it eased, would make the others easier?</label><div style="font-size:12px;color:var(--text3);margin:-2px 0 6px">Pick that one first, then up to two more. If you are short of energy, one is enough.</div>
+      ${rs.map(r => { const on = (c.top || []).includes(r.id); const t = CH_TYPES.find(x => x.id === r.type);
+        return `<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;padding:5px 0;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} ${!on && full ? 'disabled' : ''} onchange="chToggleTop('${r.id}', this.checked)" style="margin-top:3px"><span>${escapeHtml(r.text)} <span class="tag" style="background:var(--bg2)">${escapeHtml(t ? t.label : '')}</span>${r.ctl ? ` <span style="color:var(--text3);font-size:12px">${escapeHtml(CH_CONTROL.find(o => o[0] === r.ctl)[1])}</span>` : ''}</span></label>`; }).join('')}</div>`;
+  }
+  if (s === 4) {
+    const top = (c.top || []).map(id => (c.reasons || []).find(r => r.id === id)).filter(Boolean);
+    if (!top.length) return `<p style="font-size:13px;color:var(--text2)">Choose at least one reason on the previous stage first.</p>`;
+    return top.map((r, i) => {
+      const o = (c.opts || {})[r.id] || {};
+      const rel = chRelated(c, r.text);
+      const f = (label, k, rows, help) => `<div class="field-group"><label class="field-label">${escapeHtml(label)}</label>${help ? `<div style="font-size:12px;color:var(--text3);margin:-2px 0 4px">${help}</div>` : ''}<textarea rows="${rows}" oninput="chSetOpt('${r.id}','${k}', this.value)">${escapeHtml(o[k] || '')}</textarea></div>`;
+      const relHtml = rel.length ? `<div style="font-size:12px;background:var(--bg2);border-radius:6px;padding:6px 8px;margin:-2px 0 .5rem"><strong>From your own record</strong> (matched by wording, so check they fit):${rel.map(p => `<div style="margin-top:3px">${escapeHtml(p.kind)} ${p.date ? fmtDate(p.date) : ''}: ${escapeHtml(p.text.length > 160 ? p.text.slice(0, 159) + '…' : p.text)}</div>`).join('')}</div>` : '';
+      const more = f('What would you say to a friend in your position?', 'friend', 2) + f('Have you handled something like this before?', 'before', 2) + relHtml + f('What might get in the way of this?', 'obstacles', 2) + f('Who could help?', 'helpers', 2);
+      const moreOpen = !!CH.more[CH.stage];
+      return `<div class="card" style="margin-bottom:.75rem"><div style="font-weight:500;margin-bottom:.4rem">${i + 1}. ${escapeHtml(r.text)}</div>
+        ${f('What could you do about this one? List a few options, however rough.', 'options', 3)}${f('What is the smallest step you could take this week?', 'smallest', 2)}
+        ${moreOpen ? `<div style="padding-left:.75rem;border-left:2px solid var(--border)">${more}</div>` : ''}</div>`;
+    }).join('') + `<div><button class="btn btn-secondary btn-sm" onclick="chToggleMore()">${CH.more[CH.stage] ? 'Show fewer questions' : 'Show 4 more questions for each'}</button></div>`;
+  }
+  if (s === 5) {
+    const sab = TRAITS.filter(x => x.category === 'saboteurs').slice(0, 5).map(x => x.label).filter(Boolean);
+    return `<div class="field-group"><label class="field-label">When will you look at this again?</label><input type="date" value="${escapeHtml(c.review || '')}" onchange="chSet('review', this.value)"></div>
+      <div class="field-group"><label class="field-label">How is it going?</label><select onchange="chSet('status', this.value)">${CH_STATUS.map(o => `<option value="${o[0]}" ${c.status === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></div>`
+      + chMoreWrap(1, chQ('Which of your own patterns might show up as you try this?', sab.length ? 'You have recorded these saboteurs: ' + sab.join(', ') + '.' : '', 'patternsNote', 3, ''));
+  }
+  // 6
+  return `<p style="font-size:13px;color:var(--text2);margin-bottom:.5rem">This builds a prompt for Claude from what you wrote, plus your Snapshot. Paste it into a Claude chat. Claude replies in plain language and ends with suggestions you can bring back here, where you tick only what you want. <strong>B&amp;B never sees the chat.</strong></p>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;margin-bottom:.5rem;cursor:pointer"><input type="checkbox" ${CH.patterns ? 'checked' : ''} onchange="CH.patterns=this.checked;chRender()" style="margin-top:3px"><span>Ask Claude where my patterns (qualities, styles, saboteurs, energisers, drainers) may be showing up. <span style="color:var(--text3)">Includes everything you have recorded in Qualities &amp; Styles.</span></span></label>
+    <textarea id="chPromptText" readonly style="width:100%;height:280px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5">${escapeHtml(chPromptText(c))}</textarea>
+    <p style="font-size:12px;color:var(--text3);margin-top:.4rem">Your answers may name other people. Remove anything you would rather Claude did not see before you paste.</p>`;
+}
+function chRender() {
+  const c = chCur(); if (!c) return;
+  const dots = CH_STAGES.map((n, i) => `<button class="filter-tab${CH.stage === i + 1 ? ' active' : ''}" onclick="chGo(${i + 1})" style="font-size:12px;padding:3px 10px">${i + 1}. ${escapeHtml(n)}</button>`).join('');
+  const body = `<div class="filter-tabs" style="margin-bottom:.75rem">${dots}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:.6rem">Everything saves as you go. You can stop whenever you like and come back to this later.</div>
+    <h3 style="margin:0 0 .6rem;font-size:16px">${CH.stage}. ${escapeHtml(CH_STAGES[CH.stage - 1])}</h3>${chStageBody(c)}`;
+  const s = CH.stage;
+  const foot = `<button class="btn btn-secondary" onclick="closeModal();renderChallenges()">Save and close</button>`
+    + (s > 1 ? `<button class="btn btn-secondary" onclick="chGo(${s - 1})">Back</button>` : '')
+    + (s < 6 ? `<button class="btn btn-primary" onclick="chGo(${s + 1})">Next</button>` : `<button class="btn btn-secondary" onclick="chPasteModal()">Paste Claude’s reply</button><button class="btn btn-primary" onclick="chCopyPrompt()">📋 Copy prompt</button>`);
+  const mbx = document.getElementById('modalBox'); const st = (mbx && CH.keepScroll) ? mbx.scrollTop : 0; CH.keepScroll = true;
+  openModal('Solution builder: ' + escapeHtml(chTitle(c)), body, foot);
+  if (mbx) mbx.scrollTop = st;
+}
+function chCopyPrompt() {
+  const ta = document.getElementById('chPromptText'); if (!ta) return;
+  ta.focus(); ta.select(); ta.setSelectionRange(0, 999999);
+  try { document.execCommand && document.execCommand('copy'); } catch(e) {}
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(ta.value).catch(()=>{}); }
+  alert('Copied. Paste it into a new Claude chat and send it. When Claude replies, come back here and choose “Paste Claude’s reply”.');
+}
+function chPasteModal(errMsg) {
+  const body = `<p style="font-size:13px;color:var(--text2);margin-bottom:.5rem">Paste Claude’s whole reply here, including the code box at the end. You will then see each suggestion and choose what to add. Nothing is ticked to begin with.</p>
+    <textarea id="chReply" rows="12" style="width:100%" placeholder="Paste Claude’s reply here"></textarea>
+    <div id="chErr" style="color:var(--danger,#b3261e);font-size:13px;margin-top:.5rem;min-height:18px">${errMsg ? escapeHtml(errMsg) : ''}</div>`;
+  openModal('Paste Claude’s reply', body, `<button class="btn btn-secondary" onclick="chRender()">Back</button><button class="btn btn-primary" onclick="chReview()">Review suggestions</button>`);
+}
+function chReview() {
+  const r = parseImportReply((document.getElementById('chReply') || {}).value);
+  if (r.error) { const e = document.getElementById('chErr'); if (e) e.textContent = r.error; return; }
+  IMP.source = 'challenge'; IMP.items = r.items; IMP.summary = r.summary; IMP.sentFlags = r.skipped; IMP.truncated = !!r.truncated; IMP.overMax = r.overMax || 0;
+  openImportReview();
+}
+function chPromptText(c) {
+  const L = []; const ctlTxt = v => (CH_CONTROL.find(o => o[0] === v) || [0, ''])[1];
+  L.push(buildScenarioContext({ patterns: !!CH.patterns }));
+  L.push(''); L.push('---'); L.push('');
+  L.push('I am working through a challenge, using my Being & Becoming (B&B) log above as background. I would like your help. Today’s date is ' + today() + '.');
+  L.push(''); L.push('THE CHALLENGE'); L.push((c.what || '').trim() || '(not described)');
+  if ((c.sorted || '').trim()) { L.push(''); L.push('WHAT “SORTED” WOULD LOOK LIKE'); L.push(c.sorted.trim()); }
+  if ((c.tried || '').trim()) { L.push(''); L.push('WHAT I HAVE ALREADY TRIED, AND WHAT HAPPENED'); L.push(c.tried.trim()); }
+  if ((c.others || '').trim()) { L.push(''); L.push('WHO ELSE IS INVOLVED'); L.push(c.others.trim()); }
+  const rs = c.reasons || [];
+  if (rs.length) { L.push(''); L.push('WHY I FIND IT HARD'); CH_TYPES.forEach(t => { const x = rs.filter(r => r.type === t.id); if (x.length) { L.push(t.label + ':'); x.forEach(r => L.push('- ' + r.text + (r.ctl ? ' (' + ctlTxt(r.ctl).toLowerCase() + ')' : ''))); } }); }
+  if ((c.cost || '').trim()) { L.push(''); L.push('WHAT IT COSTS ME TO LEAVE IT AS IT IS'); L.push(c.cost.trim()); }
+  if ((c.protect || '').trim()) { L.push(''); L.push('WHAT I MAY GAIN OR PROTECT BY LEAVING IT'); L.push(c.protect.trim()); }
+  const top = (c.top || []).map(id => rs.find(r => r.id === id)).filter(Boolean);
+  if (top.length) { L.push(''); L.push('THE REASONS I THINK MATTER MOST (and what I have thought of so far)');
+    top.forEach((r, i) => { const o = (c.opts || {})[r.id] || {}; L.push((i + 1) + '. ' + r.text);
+      [['options', 'Options I can see'], ['smallest', 'Smallest step I could take this week'], ['friend', 'What I would tell a friend'], ['before', 'Something similar I have handled before'], ['obstacles', 'What might get in the way'], ['helpers', 'Who could help']].forEach(([k, lab]) => { if ((o[k] || '').trim()) L.push('   ' + lab + ': ' + o[k].trim().replace(/\n+/g, ' ')); }); }); }
+  if ((c.patternsNote || '').trim()) { L.push(''); L.push('PATTERNS I THINK MIGHT SHOW UP'); L.push(c.patternsNote.trim()); }
+  L.push(''); L.push('WHAT I WOULD LIKE YOU TO DO');
+  L.push('Reply in plain, warm, practical language, without judging me. Please cover:');
+  L.push('1. Further options for each of the reasons I picked, beyond the ones I have thought of.');
+  L.push('2. Two or three questions I may not have asked myself.');
+  L.push('3. A suggested first week: small, specific steps.');
+  L.push('4. What to watch for as I try this.');
+  if (CH.patterns) L.push('5. Where my own patterns may be showing up (quote the item from my snapshot, say why, treat these as possibilities, not diagnoses, and say if nothing fits).');
+  L.push(''); L.push('RULES FOR THE SUGGESTIONS');
+  L.push('- Add only. Do not suggest deleting, changing, scoring or rating anything.');
+  L.push('- Write items in the first person (“I”), in my own words where my answers give them.');
+  L.push('- Leave out the names of other people (use a role, or initials). Set "third_party" in flags if an item still involves another person.');
+  L.push('- Leave out health, family, financial and other sensitive personal detail. If you include anything borderline, put "sensitive" in its flags.');
+  L.push('- For each item give a short "evidence" (a few words from my answers, no more than 20 words) and a one-line "why".');
+  L.push('- Each of my existing values, goals, qualities, energisers and drainers (listed below) has a short code in square brackets, such as [G-ab12c]. Where an item relates to one of them, put its code (for example "G-ab12c") in "values" or "goal" rather than its name.');
+  L.push(''); L.push('HOW TO REPLY');
+  L.push('First your plain-language reply, then ONE code block containing JSON, exactly in this shape, and nothing after it:');
+  L.push('```json');
+  L.push('{"bb_import_version":1,"summary":"one or two sentences","proposals":[');
+  L.push('  {"type":"action","text":"a small step, as an invitation","due":"YYYY-MM-DD or empty","goal":"G-…","values":["V-…"],"evidence":"…","why":"…","flags":[]},');
+  L.push('  {"type":"learning","text":"something worth keeping from this","category":"General","goal":"G-…","values":["V-…"],"evidence":"…","why":"…","flags":[]},');
+  L.push('  {"type":"scratchpad","text":"a question to sit with, or something to watch for","evidence":"…","why":"…","flags":[]}');
+  L.push(']}'); L.push('```');
+  L.push('The types you can use: action (a small step; fields text, due, goal, values), learning (text, category, goal, values), habit (label, cue, why, steps, smallest, values, goals; only if a repeated practice would really help), scratchpad (text), note (on, target, text).');
+  const ex = impExistingBlock(); L.push(''); L.push('WHAT I ALREADY HAVE IN B&B (names only, so you can link to them)'); L.push(ex || '(nothing yet)');
+  const rc = impRecentBlock(); if (rc) { L.push(''); L.push('WHAT I HAVE ALREADY RECORDED (short, most recent first). Please do not suggest points these already cover.'); L.push(rc); }
+  return L.join('\n');
+}
+function chStageLabel(c) { return (c.stage || 1) >= 6 ? 'Ready for Claude' : 'Stage ' + (c.stage || 1) + ' of 6: ' + CH_STAGES[(c.stage || 1) - 1]; }
+function renderChallenges() {
+  const el = document.getElementById('challenges'); if (!el) return;
+  const list = chAll().slice().sort((a, b) => (b.updated || '').localeCompare(a.updated || ''));
+  const rows = list.map(c => {
+    const due = c.review && c.review <= today() && c.status === 'working';
+    const top = (c.top || []).map(id => (c.reasons || []).find(r => r.id === id)).filter(Boolean);
+    return `<div class="card" style="margin-bottom:.75rem"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px"><div style="font-weight:500">${escapeHtml(chTitle(c))}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">${escapeHtml(chStageLabel(c))} · started ${fmtDate(c.created)}${c.review ? ' · look again ' + fmtDate(c.review) : ''}</div>
+        ${due ? '<div style="font-size:12px;color:var(--warm,#8C5A2B);margin-top:3px">Time to look at this again.</div>' : ''}
+        ${top.length ? `<div style="font-size:12.5px;color:var(--text2);margin-top:6px">Most in the way: ${top.map(r => escapeHtml(r.text)).join('; ')}</div>` : ''}</div>
+      <div style="display:flex;gap:6px;align-items:center"><select onchange="chSetStatus('${c.id}', this.value)" style="font-size:12.5px">${CH_STATUS.map(o => `<option value="${o[0]}" ${c.status === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
+        <button class="btn btn-primary btn-sm" onclick="chOpen('${c.id}')">Open</button><button class="btn btn-secondary btn-sm" onclick="chDelete('${c.id}')">Delete</button></div></div></div>`;
+  }).join('');
+  el.innerHTML = arSwitchHtml('challenges') + `<div class="section-head"><div><div class="eyebrow">Working it through</div><div class="section-title">Solution builder</div>
+      <div class="section-sub">Take a challenge from “what is going on” to a few small steps, one stage at a time</div></div>
+      <button class="btn btn-primary btn-sm" onclick="chNew()">+ New challenge</button></div>
+    ${rows || `<div class="card"><p style="font-size:13px;color:var(--text2);margin:0 0 .5rem">Nothing here yet. The builder asks you to describe a challenge, say why it is hard, pick the three reasons that matter most, and think about how each might be eased. It finishes with a prompt for Claude, and you choose which of Claude’s suggestions to keep.</p><p style="font-size:12.5px;color:var(--text3);margin:0">Short on energy? Each stage shows only its main questions. Open “Show more questions” if you want them. Challenges are never included in the snapshot for your accountability partner.</p></div>`}`;
+}
+
 function arSwitchHtml(cur) {
-  return `<div class="filter-tabs" style="margin-bottom:.75rem"><button class="filter-tab${cur==='actions'?' active':''}" onclick="showView('actions')">Actions</button><button class="filter-tab${cur==='roadmap'?' active':''}" onclick="showView('roadmap')">Roadmap</button></div>`;
+  return `<div class="filter-tabs" style="margin-bottom:.75rem"><button class="filter-tab${cur==='actions'?' active':''}" onclick="showView('actions')">Actions</button><button class="filter-tab${cur==='roadmap'?' active':''}" onclick="showView('roadmap')">Roadmap</button><button class="filter-tab${cur==='challenges'?' active':''}" onclick="showView('challenges')">Solution builder</button></div>`;
 }
 function renderActions() {
   let html = arSwitchHtml('actions') + `
@@ -7393,6 +7627,10 @@ function exportExcel() {
     h.date, h.label||'', FOCUS_TYPE_LABELS[h.type]||h.type, h.action==='prioritised'?'Starred':'Unstarred',
   ]));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(fhRows), 'Focus history');
+  const chRows = [['Started','Challenge','What sorted looks like','Already tried','Status','Look again','Reasons it is hard','Top three','Options and smallest steps']];
+  load(SK.challenges).forEach(c => { const rs = c.reasons || []; const lab = id => (rs.find(r => r.id === id) || {}).text || '';
+    chRows.push([c.created, c.what||'', c.sorted||'', c.tried||'', (CH_STATUS.find(o=>o[0]===c.status)||[0,''])[1], c.review||'', rs.map(r => r.type + ': ' + r.text + (r.ctl ? ' [' + (CH_CONTROL.find(o=>o[0]===r.ctl)||[0,''])[1] + ']' : '')).join('\n'), (c.top||[]).map(lab).join('\n'), (c.top||[]).map(id => lab(id) + ' -> ' + ((c.opts||{})[id]||{}).options + ' | smallest: ' + ((c.opts||{})[id]||{}).smallest).join('\n')]); });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(chRows), 'Challenges');
 
   const caRows = [['Date','Item','Type','Question','Answer']];
   [...load(SK.contextAnswers)].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(a => caRows.push([
@@ -7411,7 +7649,7 @@ function buildBackupData() {
     valueScores:load(SK.valueScores), goalCheckins:load(SK.goalCheckins),
     willSessions:load(SK.willSessions), skillSessions:load(SK.skillSessions), connectivitySessions:load(SK.connectivitySessions),
     skillCheckins:load(SK.skillCheckins), relevanceScores:load(SK.relevanceScores), tactics:load(SK.tactics),
-    actions:load(SK.actions), learnings:load(SK.learnings), themes:load(SK.themes), brightSpots:load(SK.brightSpots), imports:load(SK.imports), displayName:getDisplayName(), lastSharedDate:getLastSharedDate(), goalsGroupCadence:getGoalsGroupCadence(), shareTrendWill:wsGet(SK.shareTrendWill)||'', shareTrendSkill:wsGet(SK.shareTrendSkill)||'', shareTrendConnectivity:wsGet(SK.shareTrendConnectivity)||'',
+    actions:load(SK.actions), learnings:load(SK.learnings), themes:load(SK.themes), brightSpots:load(SK.brightSpots), imports:load(SK.imports), challenges:load(SK.challenges), displayName:getDisplayName(), lastSharedDate:getLastSharedDate(), goalsGroupCadence:getGoalsGroupCadence(), shareTrendWill:wsGet(SK.shareTrendWill)||'', shareTrendSkill:wsGet(SK.shareTrendSkill)||'', shareTrendConnectivity:wsGet(SK.shareTrendConnectivity)||'',
     scratchpad:load(SK.scratchpad), scratchpadCategories:SCRATCHPAD_CATEGORIES,
     focusItems:load(SK.focusItems), focusHistory:load(SK.focusHistory), contextAnswers:load(SK.contextAnswers),
     habits:load(SK.habits), habitCheckins:load(SK.habitCheckins), habitChanges:load(SK.habitChanges), learnConnect:getLearnConnect(), roadmap:getRoadmap(), roadmapPrev:getRoadmapPrev(),
@@ -7496,6 +7734,7 @@ function applyRestoreData(data) {
   if (data.themes) { save(SK.themes, data.themes); loadThemes(); }
   if (data.brightSpots) save(SK.brightSpots, data.brightSpots);
   if (data.imports) save(SK.imports, data.imports);
+  if (data.challenges) save(SK.challenges, data.challenges);
   if (data.habits) save(SK.habits, data.habits);
   if (data.habitCheckins) save(SK.habitCheckins, data.habitCheckins);
   if (data.habitChanges) save(SK.habitChanges, data.habitChanges);
@@ -7576,7 +7815,7 @@ function snapshotWorkspaceData(wsId) {
     valueScores: load(SK.valueScores), goalCheckins: load(SK.goalCheckins),
     willSessions: load(SK.willSessions), skillSessions: load(SK.skillSessions), connectivitySessions: load(SK.connectivitySessions),
     skillCheckins: load(SK.skillCheckins), relevanceScores: load(SK.relevanceScores), tactics: load(SK.tactics),
-    actions: load(SK.actions), learnings: load(SK.learnings), themes: load(SK.themes), brightSpots: load(SK.brightSpots), imports: load(SK.imports), displayName: wsGet(SK.displayName) || '', lastSharedDate: wsGet(SK.lastSharedDate) || '', goalsGroupCadence: wsGet(SK.goalsGroupCadence) || '', shareTrendWill: wsGet(SK.shareTrendWill) || '', shareTrendSkill: wsGet(SK.shareTrendSkill) || '', shareTrendConnectivity: wsGet(SK.shareTrendConnectivity) || '',
+    actions: load(SK.actions), learnings: load(SK.learnings), themes: load(SK.themes), brightSpots: load(SK.brightSpots), imports: load(SK.imports), challenges: load(SK.challenges), displayName: wsGet(SK.displayName) || '', lastSharedDate: wsGet(SK.lastSharedDate) || '', goalsGroupCadence: wsGet(SK.goalsGroupCadence) || '', shareTrendWill: wsGet(SK.shareTrendWill) || '', shareTrendSkill: wsGet(SK.shareTrendSkill) || '', shareTrendConnectivity: wsGet(SK.shareTrendConnectivity) || '',
     scratchpad: load(SK.scratchpad), scratchpadCategories,
     focusItems: load(SK.focusItems), focusHistory: load(SK.focusHistory), contextAnswers: load(SK.contextAnswers),
     habits: load(SK.habits), habitCheckins: load(SK.habitCheckins), habitChanges: load(SK.habitChanges), learnConnect: getLearnConnect(), roadmap: getRoadmap(), roadmapPrev: getRoadmapPrev(),
@@ -7609,6 +7848,7 @@ function restoreWorkspaceData(wsId, data) {
   if (data.themes) save(SK.themes, data.themes);
   if (data.brightSpots) save(SK.brightSpots, data.brightSpots);
   if (data.imports) save(SK.imports, data.imports);
+  if (data.challenges) save(SK.challenges, data.challenges);
   if (data.habits) save(SK.habits, data.habits);
   if (data.habitCheckins) save(SK.habitCheckins, data.habitCheckins);
   if (data.habitChanges) save(SK.habitChanges, data.habitChanges);
@@ -7705,7 +7945,7 @@ function clearAllData() {
   if (!confirm('Delete EVERYTHING in this workspace permanently — goals, values, traits, skills, criteria, scratchpad, check-ins, actions, all of it? Download a backup first if you want to keep a copy.')) return;
   if (!confirm('Are you sure? This empties the workspace completely and cannot be undone.')) return;
   [SK.valueScores, SK.goalCheckins, SK.willSessions, SK.skillSessions, SK.connectivitySessions, SK.skillCheckins, SK.relevanceScores, SK.tactics, SK.actions, SK.learnings, SK.traitNotes, SK.scratchpad, SK.habits, SK.habitCheckins, SK.habitChanges, SK.learnConnect, SK.roadmap, SK.roadmapPrev,
-    SK.energisersDrainers, SK.themes, SK.brightSpots, SK.imports, SK.focusItems, SK.focusHistory, SK.contextAnswers, SK.displayName, SK.hiddenTabs,
+    SK.energisersDrainers, SK.themes, SK.brightSpots, SK.imports, SK.challenges, SK.focusItems, SK.focusHistory, SK.contextAnswers, SK.displayName, SK.hiddenTabs,
     SK.lastSharedDate, SK.cadenceBannerDismissed, SK.goalsGroupCadence, SK.shareTrendWill, SK.shareTrendSkill, SK.shareTrendConnectivity, SK.themes+'_last_organised_count']
     .forEach(k=>wsRemove(k));
   ENERGISERS_DRAINERS = []; THEMES = []; HIDDEN_TABS = [];
