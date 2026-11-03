@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accompanying</title>
+<style>
+:root{
+  --bg:#FAFAF8; --bg2:#F3F1EC; --bg3:#EAE8E2; --border:#E4E1D8; --text:#1C1B18; --text2:#5C5A52; --text3:#8C8A85;
+  --accent:#4A6741; --accent-dk:#34492E; --accent-lt:#E8EDE4; --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);line-height:1.5}
+.wrap{max-width:640px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
+h1{font-size:1.6rem;font-weight:600;margin:0 0 .25rem}
+.tagline{color:var(--text2);font-size:14px;margin-bottom:1.5rem}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600}
+.card{background:#fff;border:0.5px solid var(--border);border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:1rem}
+.card-sm{background:var(--bg2);border:0.5px solid var(--border);border-radius:8px;padding:.75rem;margin-bottom:.6rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0.5px solid var(--border);
+  border-radius:8px;padding:.6rem 1rem;font-size:14px;cursor:pointer;background:var(--bg2);color:var(--text);
+  font-family:inherit;text-decoration:none}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-block{width:100%;margin-bottom:.6rem}
+.btn-sm{padding:.4rem .75rem;font-size:13px}
+.field-group{margin-bottom:1rem}
+.field-label{display:block;font-size:13px;font-weight:500;margin-bottom:.35rem}
+.field-hint{font-size:12px;color:var(--text3);margin-top:.25rem}
+select,textarea,input[type=text]{width:100%;padding:.55rem .6rem;border:0.5px solid var(--border);border-radius:8px;
+  font-family:inherit;font-size:14px;background:#fff;color:var(--text)}
+textarea{min-height:70px;resize:vertical}
+.guide-q{font-style:italic;color:var(--accent-dk);font-size:14px;margin:.25rem 0 1rem}
+.mode-choice{display:flex;flex-direction:column;gap:.75rem;margin-top:1.5rem}
+.mode-btn{display:block;text-align:left;padding:1.1rem;border-radius:var(--r);border:0.5px solid var(--border);
+  background:#fff;cursor:pointer;font-family:inherit}
+.mode-btn:hover{border-color:var(--accent)}
+.mode-btn .t{font-weight:600;font-size:15px;margin-bottom:2px}
+.mode-btn .d{font-size:13px;color:var(--text2)}
+.pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:12px;background:var(--accent-lt);color:var(--accent-dk)}
+.section-label{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin:1.25rem 0 .5rem}
+.back-link{background:none;border:none;color:var(--accent);font-size:13px;cursor:pointer;padding:2px 0;margin-bottom:1rem;display:block}
+.compare-row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:.75rem}
+@media(max-width:520px){.compare-row{grid-template-columns:1fr}}
+.compare-col{background:var(--bg2);border-radius:8px;padding:.6rem}
+.compare-col .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--text3);margin-bottom:.25rem}
+.empty-state{color:var(--text3);font-size:13px;padding:1rem;text-align:center}
+textarea#snapshotOut{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+
+/* -- Header / Footer (aligned with Being & Becoming) -- */
+.hdr{background:var(--accent);padding:0 1.5rem;display:flex;align-items:center;
+  justify-content:flex-start;height:54px}
+.hdr-inner{position:relative;padding-left:46px}
+.hdr-brand{color:#CFDBC7;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+.hdr-title{color:#fff;font-size:17px;font-weight:500}
+@media (max-width:480px){
+  .hdr-brand{display:none}
+  .hdr-title{font-size:15px}
+  .hdr img[alt=""]{height:30px}
+}
+.app-footer{text-align:center;padding:1.25rem 1.5rem 1.5rem;font-size:11px;color:var(--text3);border-top:0.5px solid var(--border);margin-top:1rem}
+.manage-row{display:flex;align-items:center;gap:8px;padding:.625rem .75rem;border:0.5px solid var(--border);
+  border-radius:var(--r);margin-bottom:.5rem;background:#fff;cursor:pointer;font-family:inherit;width:100%;text-align:left}
+.manage-row:hover{border-color:var(--accent)}
+.manage-row-title{flex:1;font-size:13px}
+.manage-row-meta{font-size:11px;color:var(--text3)}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="hdr-inner">
+    <img src="data:image/png;base64,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" alt="" style="position:absolute;top:50%;left:0;height:42px;width:auto;transform:translateY(-50%);display:block">
+    <div class="hdr-brand">What Now? What Next?</div>
+    <div class="hdr-title">Accompanying</div>
+  </div>
+</header>
+<div class="wrap" id="app"></div>
+<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved.</footer>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   ACCOMPANYING — a standalone companion to Being & Becoming, for
+   figuring out what kind of accountability partner would genuinely
+   serve a specific coachee, and checking a prospective partner's
+   own self-assessment against that. Same architecture as B&B:
+   single file, localStorage only, JSON export/import between the
+   two roles — nothing sent anywhere, nothing shared except the
+   files people deliberately hand to each other.
+   ══════════════════════════════════════════════════════════════ */
+
+// ── Data: the 8 trait-defining dimensions, their answer options,
+// and what each answer implies for partner fit. Source: the
+// Accountability Partner Matching workbook.
+const DIMENSIONS = [
+  { id:'saboteur', label:'Your most common self-defeating pattern', guideQ:"When you're at your worst, which of these sounds most like you?",
+    options:['Avoider','Controller','Hyper-Achiever','Hyper-Rational','Hyper-Vigilant','Pleaser','Stickler','Restless','Victim','Not sure'],
+    optionLabels:{
+      'Avoider':'Avoiding conflict and difficult tasks (sometimes called \u2018Avoider\u2019)',
+      'Controller':'Needing to be in control and take charge (\u2018Controller\u2019)',
+      'Hyper-Achiever':'Tying your self-worth to constant achievement (\u2018Hyper-Achiever\u2019)',
+      'Hyper-Rational':'Over-relying on logic, at the cost of emotion (\u2018Hyper-Rational\u2019)',
+      'Hyper-Vigilant':'Constant worry about what could go wrong (\u2018Hyper-Vigilant\u2019)',
+      'Pleaser':'Needing to be liked, at the cost of your own needs (\u2018Pleaser\u2019)',
+      'Stickler':'Perfectionism and self-criticism (\u2018Stickler\u2019)',
+      'Restless':'Constantly chasing the next thing, rarely settled (\u2018Restless\u2019)',
+      'Victim':'Feeling like things happen to you, rather than because of you (\u2018Victim\u2019)',
+      'Not sure':'Not sure',
+    } },
+  { id:'zone', label:'Zone tendency', guideQ:"Left to your own devices, do you tend to take on more than's comfortable, or play it safe?",
+    options:['Tends to under-stretch (stays comfortable)','Leans toward under-stretching, more often than not','Balanced — moves between both','Leans toward over-stretching, more often than not','Tends to over-stretch (takes on too much)'] },
+  { id:'challenge', label:'Response to challenge', guideQ:'When someone pushes back on you directly, what\'s your honest first reaction?',
+    options:['Tends to shut down or withdraw','Gets defensive','Wants feedback delivered gently','Wants feedback delivered directly, no cushioning','Genuinely fine either way'] },
+  { id:'processing', label:'Processing style', guideQ:"When you're working through something difficult, do you think better out loud with someone, or alone in your own head?",
+    options:['Internal — needs quiet to think it through','Mostly internal, but sometimes talks it through','Depends on the situation','Mostly external, but sometimes needs quiet first','External — thinks out loud, needs to talk it through'] },
+  { id:'followthrough', label:'Follow-through tendency', guideQ:"Once you've committed to something for yourself, how reliably do you follow through without anyone checking in?",
+    options:['Reliably follows through alone','Usually follows through alone, occasionally needs a nudge','Sometimes needs a nudge','Often needs a nudge or check-in to follow through','Genuinely needs external structure to follow through'] },
+  { id:'vulnerability', label:'Comfort with vulnerability', guideQ:"How much are you comfortable letting this person see when things aren't going well?",
+    options:['Very guarded — shares only once fully processed','Somewhat guarded — needs real trust before opening up','Moderately open — will share if asked directly','Fairly open — shares fairly readily, without much prompting','Very open — processes out loud, including the messy parts'] },
+  { id:'selfcriticism', label:'Self-criticism tendency', guideQ:"When you fall short of something you wanted to do, are you hard on yourself, or do you let it go easily?",
+    options:['Very hard on myself when I fall short','Fairly hard on myself, but recovers with time','Somewhat hard on myself, but recovers','Mildly hard on myself, mostly lets it go','Lets it go fairly easily'] },
+  { id:'seekshelp', label:'Seeks vs. resists help', guideQ:"When you're struggling, do you tend to ask for help, or wait until it's offered?",
+    options:['Asks for help readily','Usually asks for help without too much delay','Only asks once things are already difficult','Rarely asks, mostly waits to be checked on','Resists asking until help is offered'] },
+];
+
+const RECOMMENDATION = {
+  saboteur: {
+    'Stickler': "A partner who won't reinforce self-criticism, but will gently name perfectionism when it shows up. Avoid pairing with another Stickler.",
+    'Pleaser': "A partner who will genuinely challenge and push back, not just validate. Avoid pairing with another Pleaser.",
+    'Avoider': "A partner skilled at naming avoidance directly, without triggering withdrawal.",
+    'Controller': "A partner who won't simply defer or be intimidated — comfortable holding their own ground.",
+    'Hyper-Achiever': "A partner who asks about wellbeing and process, not just outcomes — helps value the journey, not only the win.",
+    'Restless': "A partner who helps them stay with one thing, rather than enabling scattergun switching.",
+    'Victim': "A partner who validates feeling without dwelling, and redirects toward agency and choice.",
+    'Hyper-Vigilant': "A calm partner who doesn't amplify anxiety, and helps distinguish real risk from perceived risk.",
+    'Hyper-Rational': "A partner comfortable naming and normalising emotion, not just logic.",
+    'Not sure': "No strong steer yet from this dimension — default to the universal qualities only.",
+  },
+  zone: {
+    'Tends to under-stretch (stays comfortable)': "A partner who will genuinely challenge and push, not just validate comfort.",
+    'Leans toward under-stretching, more often than not': "A partner who nudges toward stretch a little more often than not, without ever forcing it.",
+    'Balanced — moves between both': "A partner who can flex either way as the moment calls for it.",
+    'Leans toward over-stretching, more often than not': "A partner who's comfortable pulling back sometimes, even if push is still usually the right call.",
+    'Tends to over-stretch (takes on too much)': "A partner skilled at pulling back and giving explicit permission to do less, not just cheerleading more stretch.",
+  },
+  challenge: {
+    'Tends to shut down or withdraw': "A partner who delivers feedback gently, and checks in afterwards on how it landed.",
+    'Gets defensive': "A partner with strong non-judgment skills — reflects before responding, doesn't escalate.",
+    'Wants feedback delivered gently': "A partner who softens delivery and leads with warmth.",
+    'Wants feedback delivered directly, no cushioning': "A partner comfortable being blunt, without over-cushioning.",
+    'Genuinely fine either way': "Flexible on this front — not a major constraint on partner choice.",
+  },
+  processing: {
+    'Internal — needs quiet to think it through': "A partner genuinely comfortable with silence — doesn't fill every pause.",
+    'Mostly internal, but sometimes talks it through': "A partner who gives space by default but is ready to talk it through if invited.",
+    'Depends on the situation': "A partner who can read the room and flex between the two.",
+    'Mostly external, but sometimes needs quiet first': "A partner who's a willing thinking partner most of the time, but knows when to just listen quietly.",
+    'External — thinks out loud, needs to talk it through': "A partner willing to actively think out loud alongside them, like a real thinking partner.",
+  },
+  followthrough: {
+    'Reliably follows through alone': "Follow-through is less of a constraint — the relationship can be lighter-touch.",
+    'Usually follows through alone, occasionally needs a nudge': "A partner who checks in occasionally, more as a courtesy than a necessity.",
+    'Sometimes needs a nudge': "A partner who checks in periodically, without becoming a taskmaster.",
+    'Often needs a nudge or check-in to follow through': "A partner who checks in fairly regularly — follow-through is a real factor here.",
+    'Genuinely needs external structure to follow through': "A partner whose own follow-through and memory for commitments is strong — 'remembers the thread' becomes critical here, not just nice-to-have. Consider a more formal, scheduled rhythm.",
+  },
+  vulnerability: {
+    'Very guarded — shares only once fully processed': "A partner who is patient, doesn't push for disclosure, and is willing to go first themselves to build trust.",
+    'Somewhat guarded — needs real trust before opening up': "A partner who builds trust steadily and doesn't take guardedness personally.",
+    'Moderately open — will share if asked directly': "A partner who asks directly, rather than waiting to be told.",
+    'Fairly open — shares fairly readily, without much prompting': "A partner who's comfortable receiving a fair amount of openness without over-reacting.",
+    'Very open — processes out loud, including the messy parts': "A partner who can hold a lot without over-reacting or trying to fix everything at once.",
+  },
+  selfcriticism: {
+    'Very hard on myself when I fall short': "A partner with strong non-judgment and curiosity skills is essential here — likely the single most important trait for this person specifically.",
+    'Fairly hard on myself, but recovers with time': "A partner with strong non-judgment skills matters a lot here, even if not quite the single defining trait.",
+    'Somewhat hard on myself, but recovers': "Non-judgment still matters, but less critically than for someone highly self-critical.",
+    'Mildly hard on myself, mostly lets it go': "Non-judgment is a nice-to-have here rather than essential.",
+    'Lets it go fairly easily': "Less of a constraint here — more flexibility in partner choice.",
+  },
+  seekshelp: {
+    'Asks for help readily': "A more responsive, lighter-touch partner works fine.",
+    'Usually asks for help without too much delay': "A fairly responsive partner works fine, with occasional light check-ins.",
+    'Only asks once things are already difficult': "A partner who checks in proactively rather than waiting to be asked.",
+    'Rarely asks, mostly waits to be checked on': "A partner who checks in proactively and consistently — waiting to be asked won't work well here.",
+    'Resists asking until help is offered': "A partner who initiates consistently — proactivity is essential, not optional, for this person.",
+  },
+};
+
+// Context dimensions — free text, not scored, carried through as-is.
+const CONTEXT_FIELDS = [
+  { id:'energiser', label:'What gives you energy', prompt:"What's one thing that reliably gives you energy?" },
+  { id:'drainer', label:'What drains your energy', prompt:"What's one thing that reliably drains it?" },
+  { id:'livetension', label:'The live tension needing support', prompt:"What's the one thing right now where a bit of outside accountability would actually make a difference?" },
+  { id:'channel', label:'How you\u2019d want to stay in touch', prompt:'How would you want to stay in touch with a partner?' },
+  { id:'frequency', label:'How often', prompt:'And roughly how often?' },
+];
+
+// Section A — universal baseline, always asked of every prospective partner.
+const SECTION_A = [
+  { id:'a1', q:'When someone comes to you with a problem, is your instinct to offer a solution, or to ask them more about it first?', tests:'Ask questions rather than advise',
+    options:['I usually offer a solution or advice right away','I lean toward offering a solution, but sometimes ask first','It depends on the situation','I lean toward asking more before offering anything','I usually ask more about what happened before offering anything'] },
+  { id:'a2', q:'Someone shares a setback with you. Do you tend to respond with curiosity, or do you notice yourself quietly forming a judgment?', tests:'Curiosity, not judgment, on setbacks',
+    options:['I stay curious, without judging','Mostly curious, with occasional judgment creeping in','It varies','I often notice myself quietly judging, even if I don\'t say it','I notice myself judging fairly quickly, before curiosity kicks in'] },
+  { id:'a3', q:'Think of a time you noticed the same issue coming up for someone more than once. What did you do with that?', tests:"Reflect patterns back, don't just record them" },
+  { id:'a4', q:"After you ask someone a real question, what's your natural instinct while they sit with it?", tests:'Comfort with silence (style, not right/wrong)',
+    options:['I tend to fill the silence myself pretty quickly','I usually jump in if the pause runs long','It depends on the moment','I\'m fairly comfortable letting a pause run its course','I\'m very comfortable sitting in silence for as long as it takes'] },
+  { id:'a5', q:'Do you tend to remember what matters to people without being reminded, or is that something you have to work at?', tests:'Remember what mattered last time',
+    options:['I remember without being reminded','I mostly remember, with occasional lapses','Somewhere in between','I often forget unless something jogs my memory','I have to make a real effort to remember'] },
+  { id:'a6', q:'Think of a time someone confided something they were struggling with. Afterwards — did you keep it private, mention it to anyone else, bring it up with them again later, or something else?', tests:'Confidentiality' },
+  { id:'a7', q:"If someone you were supporting didn't make progress on something for weeks, how would you feel about that — and whose responsibility would it feel like?", tests:'Not responsible for outcomes — only for showing up well' },
+  { id:'a8', q:'When you\u2019re trying to help someone, how do you usually find out what kind of support they actually want — do you ask directly, or go with your best read of the situation?', tests:"Ask which zone, don't assume",
+    options:['I always ask directly what kind of support they want','I usually ask, but sometimes go with my best guess','A mix of both, depending on the moment','I usually go with my best guess, but will ask if unsure','I go with my best read of the situation, rather than asking directly'] },
+  { id:'a9', q:'What would you like to get out of this?', tests:'What sustains it for them (style — reciprocity itself is assumed necessary, this is about its form)',
+    options:['The satisfaction of genuinely helping someone else','My own accountability, supported in return by them','A real friendship or connection growing out of it','What I learn myself, working through their situation alongside them','Not sure yet — I\'d want to find out as we go'] },
+];
+
+// Section B — coachee-specific fit. Each keyed to the dimension it checks;
+// only shown to a partner if that dimension is present in the coachee's file.
+const SECTION_B = {
+  challenge: { q:"When someone tells you they've fallen short of something they wanted to do, how would you naturally want to help them process it — move fairly quickly toward what's next, spend time first understanding what happened, or something else?" },
+  zone: { q:"If someone you were supporting kept missing something they'd committed to, what would you naturally want to do — push them to get back on track, slow down and explore what's getting in the way, or something else?" },
+  // Genuinely open-ended already — not a wording problem. A coach's trained instinct
+  // and personal style tend to converge after years of practice, which no rewrite can
+  // separate back out. Treated as a known limitation of self-report, not fixed here.
+  challenge_style: { q:'How would you describe your own default style when someone disagrees with you or pushes back?' },
+  seekshelp: { q:"When it comes to checking in with someone you're supporting, what's your natural style — reaching out on your own initiative, waiting for them to come to you, or something in between?" },
+  general: { q:'Is there a pattern you already know about yourself that might get in the way of being a good accountability partner — and would you be willing to name it to the other person up front?' },
+};
+
+// ── Storage ──────────────────────────────────────────────────
+function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch(e) { return null; } }
+function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+function escapeHtml(s) { return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function today() { return new Date().toISOString().slice(0,10); }
+function fmtDate(d) { if (!d) return ''; const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function dimensionAnswerLabel(dimId, value) {
+  const dim = DIMENSIONS.find(d=>d.id===dimId);
+  return (dim && dim.optionLabels && dim.optionLabels[value]) ? dim.optionLabels[value] : value;
+}
+
+function triggerDownload(filename, text) {
+  const blob = new Blob([text], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+let currentView = 'home';
+let pendingUploadData = null; // holds a parsed file between upload and the next screen
+let currentComparisonEntryId = null; // which acc_comparison_history entry is open (coachee side)
+let currentPartnerLogId = null; // which acc_partner_sent_log entry is open (partner side)
+
+function go(view) { currentView = view; render(); window.scrollTo(0,0); }
+
+function render() {
+  const renders = {
+    home: renderHome,
+    manage: renderManage,
+    'coachee-quiz': renderCoacheeQuiz,
+    'coachee-dashboard': renderCoacheeDashboard,
+    'coachee-manage': renderCoacheeManage,
+    'coachee-combined': renderCombinedView,
+    'partner-setup': renderPartnerSetup,
+    'partner-dashboard': renderPartnerDashboard,
+    'partner-send': renderPartnerSend,
+    'partner-log-new': renderPartnerLogNew,
+    'partner-sent-log': renderPartnerSentLog,
+    'partner-sent-detail': renderPartnerSentDetail,
+  };
+  (renders[currentView] || renderHome)();
+}
+
+// ── Home / mode selector ─────────────────────────────────────
+function renderHome() {
+  document.getElementById('app').innerHTML = `
+    <div class="eyebrow">Being · Becoming · Accompanying</div>
+    <h1>Accompanying</h1>
+    <div class="tagline">Figure out what kind of accountability partner would genuinely serve you — and check whether a real person is actually a good fit, not just a well-meaning one.</div>
+    <div class="mode-choice">
+      <button class="mode-btn" onclick="go('coachee-dashboard')">
+        <div class="t">I'm looking for an accountability partner</div>
+        <div class="d">Answer a short set of questions about yourself, get a plain-language sense of what to look for, and check a real candidate against it.</div>
+      </button>
+      <button class="mode-btn" onclick="go('partner-dashboard')">
+        <div class="t">I've been asked to be someone's accountability partner</div>
+        <div class="d">Complete a short brief about your own style, and see how it lines up with what they need.</div>
+      </button>
+    </div>
+    <button class="btn btn-block" style="margin-top:.5rem" onclick="go('manage')">Manage your data</button>`;
+}
+
+// ── Manage hub — everything saved, in one place ───────────────
+const DECISION_BADGE = { still_deciding:'Still deciding', moving_forward:'Moving forward', not_a_fit:'Not a fit' };
+const OUTCOME_BADGE = { unknown:'Awaiting word', moving_forward:'Moving forward', not_selected:'Not selected' };
+
+function renderManage() {
+  const profile = load('acc_coachee_profile');
+  const identity = load('acc_partner_identity');
+  const history = load('acc_comparison_history') || [];
+  const sentLog = load('acc_partner_sent_log') || [];
+  let html = `<button class="back-link" onclick="go('home')">← Back</button><h1>Manage your data</h1>
+    <div class="tagline">Everything you've saved in Accompanying, in one place.</div>
+    <div class="section-label">Looking for an accountability partner</div>`;
+  if (profile) {
+    html += `<button class="manage-row" onclick="go('coachee-manage')">
+      <div class="manage-row-title">Your profile</div>
+      <div class="manage-row-meta">Last updated ${fmtDate(profile.savedDate)}</div>
+    </button>`;
+  } else {
+    html += `<button class="manage-row" onclick="go('coachee-quiz')">
+      <div class="manage-row-title">No profile yet</div>
+      <div class="manage-row-meta">Answer the questions to get started</div>
+    </button>`;
+  }
+  html += `<div class="section-label">Partner comparisons</div>`;
+  if (history.length === 0) {
+    html += `<div class="empty-state">No saved comparisons yet — these appear here once you upload a prospective partner's response.</div>`;
+  } else {
+    history.forEach(h => {
+      html += `<button class="manage-row" onclick="openComparisonHistory('${h.id}')">
+        <div class="manage-row-title">${h.partnerName?escapeHtml(h.partnerName):'Unnamed partner'}</div>
+        <div class="manage-row-meta">Saved ${fmtDate(h.savedDate)} · ${DECISION_BADGE[h.decision]||'Still deciding'}</div>
+      </button>`;
+    });
+  }
+  html += `<div class="section-label">Being someone's accountability partner</div>`;
+  if (identity) {
+    html += `<button class="manage-row" onclick="go('partner-setup')">
+      <div class="manage-row-title">${identity.name?escapeHtml(identity.name)+' — ':''}Your baseline</div>
+      <div class="manage-row-meta">Last updated ${fmtDate(identity.savedDate)}</div>
+    </button>`;
+  } else {
+    html += `<button class="manage-row" onclick="go('partner-setup')">
+      <div class="manage-row-title">No baseline yet</div>
+      <div class="manage-row-meta">Answer the baseline questions to get started</div>
+    </button>`;
+  }
+  html += `<div class="section-label">Responses you've sent</div>`;
+  if (sentLog.length === 0) {
+    html += `<div class="empty-state">Nothing logged yet — this fills in each time you send a response and choose to record it.</div>`;
+  } else {
+    sentLog.forEach(e => {
+      html += `<button class="manage-row" onclick="openPartnerSentDetail('${e.id}')">
+        <div class="manage-row-title">${e.sentTo?escapeHtml(e.sentTo):'Unnamed'}</div>
+        <div class="manage-row-meta">Sent ${fmtDate(e.sentDate)} · ${OUTCOME_BADGE[e.outcome]||'Awaiting word'}</div>
+      </button>`;
+    });
+  }
+  document.getElementById('app').innerHTML = html;
+}
+
+function saveComparisonHistory(partnerData) {
+  const history = load('acc_comparison_history') || [];
+  const entry = { id: uid(), partnerName: partnerData.partnerName || '', savedDate: today(), data: partnerData,
+    notes: '', decision: 'still_deciding', toldThem: { sent:false, date:null, message:'' }, learnings: [] };
+  history.unshift(entry);
+  save('acc_comparison_history', history);
+  return entry.id;
+}
+
+function getCurrentComparisonEntry() {
+  const history = load('acc_comparison_history') || [];
+  return history.find(h => h.id === currentComparisonEntryId);
+}
+function updateComparisonEntry(patch) {
+  const history = load('acc_comparison_history') || [];
+  const idx = history.findIndex(h => h.id === currentComparisonEntryId);
+  if (idx === -1) return;
+  history[idx] = Object.assign({}, history[idx], patch);
+  save('acc_comparison_history', history);
+}
+
+function openComparisonHistory(id) {
+  const history = load('acc_comparison_history') || [];
+  const entry = history.find(h => h.id === id);
+  if (!entry) { go('manage'); return; }
+  currentComparisonEntryId = id;
+  pendingUploadData = entry.data;
+  go('coachee-combined');
+}
+
+// ── Coachee: quiz ────────────────────────────────────────────
+function renderCoacheeQuiz() {
+  const existing = load('acc_coachee_profile');
+  const dims = existing ? existing.dimensionAnswers : {};
+  const ctx = existing ? existing.contextAnswers : {};
+  let html = `
+    <button class="back-link" onclick="go('coachee-dashboard')">← Back</button>
+    <h1>A few questions about you</h1>
+    <div class="tagline">Answered once, reused for as many prospective partners as you want to consider. Nothing here is shared until you deliberately export it.</div>`;
+  DIMENSIONS.forEach(d => {
+    html += `<div class="field-group">
+      <label class="field-label">${escapeHtml(d.label)}</label>
+      <div class="guide-q" style="font-size:13px;margin:.15rem 0 .5rem">"${escapeHtml(d.guideQ)}"</div>
+      <select id="dim_${d.id}">
+        <option value="">— Choose —</option>
+        ${d.options.map(o=>`<option value="${escapeHtml(o)}" ${dims[d.id]===o?'selected':''}>${escapeHtml(d.optionLabels?d.optionLabels[o]:o)}</option>`).join('')}
+      </select>
+    </div>`;
+  });
+  CONTEXT_FIELDS.forEach(f => {
+    html += `<div class="field-group">
+      <label class="field-label">${escapeHtml(f.label)}</label>
+      <div class="guide-q" style="font-size:13px;margin:.15rem 0 .5rem">"${escapeHtml(f.prompt)}"</div>
+      <textarea id="ctx_${f.id}">${escapeHtml(ctx[f.id]||'')}</textarea>
+    </div>`;
+  });
+  html += `<button class="btn btn-primary btn-block" onclick="saveCoacheeProfile()">Save my answers</button>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+function saveCoacheeProfile() {
+  const dimensionAnswers = {};
+  let allAnswered = true;
+  DIMENSIONS.forEach(d => {
+    const v = document.getElementById('dim_'+d.id).value;
+    if (!v) allAnswered = false;
+    dimensionAnswers[d.id] = v;
+  });
+  if (!allAnswered) { alert('Please answer every question — each one feeds directly into what to look for in a partner.'); return; }
+  const contextAnswers = {};
+  CONTEXT_FIELDS.forEach(f => { contextAnswers[f.id] = document.getElementById('ctx_'+f.id).value.trim(); });
+  const profile = { id: (load('acc_coachee_profile')||{}).id || uid(), savedDate: today(), dimensionAnswers, contextAnswers };
+  save('acc_coachee_profile', profile);
+  go('coachee-dashboard');
+}
+
+function recommendationList(dimensionAnswers) {
+  return DIMENSIONS.map(d => {
+    const answer = dimensionAnswers[d.id];
+    const text = answer && RECOMMENDATION[d.id] ? RECOMMENDATION[d.id][answer] : null;
+    return { id:d.id, label:d.label, answer, text };
+  }).filter(r=>r.text);
+}
+
+// Same as recommendationList, but surfaces a dimension whose saved answer no
+// longer matches any current option (e.g. after a wording update) instead of
+// silently dropping it — so "What to look for" never just quietly loses a card.
+function recommendationListWithStale(dimensionAnswers) {
+  return DIMENSIONS.map(d => {
+    const answer = dimensionAnswers[d.id];
+    if (!answer) return null;
+    const text = RECOMMENDATION[d.id] ? RECOMMENDATION[d.id][answer] : null;
+    if (!text) return { id:d.id, label:d.label, stale:true };
+    return { id:d.id, label:d.label, answer, text };
+  }).filter(Boolean);
+}
+
+// ── Coachee: dashboard ───────────────────────────────────────
+function renderCoacheeDashboard() {
+  const profile = load('acc_coachee_profile');
+  let html = `<button class="back-link" onclick="go('home')">← Back</button><h1>Looking for an accountability partner</h1>`;
+  if (!profile) {
+    html += `<div class="tagline">Start by answering a short set of questions about yourself — about 5 minutes.</div>
+      <button class="btn btn-primary btn-block" onclick="go('coachee-quiz')">Answer the questions</button>`;
+    document.getElementById('app').innerHTML = html;
+    return;
+  }
+  html += `<div class="tagline">Last updated ${fmtDate(profile.savedDate)}.</div>`;
+  const recs = recommendationListWithStale(profile.dimensionAnswers);
+  html += `<div class="section-label">What to look for</div>
+    <div class="card-sm" style="background:var(--accent-lt);border-color:var(--accent-lt)">Based on the answers you gave on ${fmtDate(profile.savedDate)}.</div>`;
+  recs.forEach(r => {
+    if (r.stale) {
+      html += `<div class="card-sm" style="border-color:#E0B3B3"><strong>${escapeHtml(r.label)}</strong><br><span style="color:#B33;font-size:13px">Your saved answer for this one doesn't match the current options — please re-answer it.</span></div>`;
+    } else {
+      html += `<div class="card-sm"><strong>${escapeHtml(r.label)}</strong> — ${escapeHtml(dimensionAnswerLabel(r.id, r.answer))}<br><span style="color:var(--text2);font-size:13px">${escapeHtml(r.text)}</span></div>`;
+    }
+  });
+  html += `
+    <div class="section-label">Comparing a prospective accountability partner?</div>
+    <div class="card-sm">Ask them to open Accompanying, complete (or reuse) their own profile, and send you their response file.</div>
+    <label class="btn btn-primary btn-block" style="cursor:pointer">Upload their response
+      <input type="file" accept=".json" style="display:none" onchange="handlePartnerResponseUpload(this)">
+    </label>
+    <div class="section-label">Housekeeping</div>
+    <button class="btn btn-block" onclick="go('coachee-manage')">Edit your answers</button>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+function renderCoacheeManage() {
+  const profile = load('acc_coachee_profile');
+  if (!profile) { go('coachee-dashboard'); return; }
+  let html = `<button class="back-link" onclick="go('coachee-dashboard')">← Back</button>
+    <h1>Your profile</h1>
+    <div class="tagline">Last updated ${fmtDate(profile.savedDate)}.</div>
+    <div class="section-label">Your answers</div>`;
+  DIMENSIONS.forEach(d => {
+    html += `<div class="card-sm"><strong>${escapeHtml(d.label)}</strong><br>${escapeHtml(dimensionAnswerLabel(d.id, profile.dimensionAnswers[d.id]) || '(not answered)')}</div>`;
+  });
+  CONTEXT_FIELDS.forEach(f => {
+    html += `<div class="card-sm"><strong>${escapeHtml(f.label)}</strong><br>${escapeHtml(profile.contextAnswers[f.id] || '(not answered)')}</div>`;
+  });
+  html += `
+    <button class="btn btn-primary btn-block" style="margin-top:1rem" onclick="go('coachee-quiz')">Edit my answers</button>
+    <button class="btn btn-block" style="color:#B33;border-color:#E0B3B3" onclick="clearCoacheeProfile()">Clear my profile and start over</button>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+function clearCoacheeProfile() {
+  if (!confirm('This permanently deletes your saved answers and recommendation. This cannot be undone. Continue?')) return;
+  localStorage.removeItem('acc_coachee_profile');
+  go('home');
+}
+
+// ── Coachee: upload a partner's response, then combined view ─
+// Option A: there's no coachee-side export leg any more. The partner's
+// response is generated purely from their own saved baseline (see the
+// partner-send flow below), so there's nothing for the coachee to send
+// first — they only ever upload what a partner sends back.
+function handlePartnerResponseUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.type !== 'accompanying_partner_response') { alert('This doesn\'t look like an Accompanying partner response file.'); return; }
+      currentComparisonEntryId = saveComparisonHistory(data);
+      pendingUploadData = data;
+      go('coachee-combined');
+    } catch(err) { alert('Could not read that file — is it the right one?'); }
+  };
+  reader.readAsText(file);
+}
+
+// Where a dimension has no direct Section B question, this is the closest genuine
+// cousin already sitting in Section A — a real related answer, not a guess, and much
+// more useful than an empty placeholder. Saboteur has no natural cousin, so it's left
+// out deliberately rather than forced.
+const CLOSEST_RELATED_A = {
+  processing: 'a4',      // let a question sit <-> processing style
+  followthrough: 'a5',   // remembers what mattered <-> follow-through tendency
+  selfcriticism: 'a2',   // curiosity, not judgment <-> self-criticism tendency
+  vulnerability: 'a6',   // confidentiality (what they did with a disclosure) <-> vulnerability
+};
+
+// Six of the nine baseline questions encode established coaching practice, so a
+// genuinely stronger/weaker answer exists for those — the other three are style
+// (a4, a5 — already compared against the coachee's own answer in "Specific to
+// you"; a9 has no coachee-side equivalent at all). Keeping this split explicit
+// stops the guidance here from leaking into questions that are fit, not merit.
+const SECTION_A_GUIDANCE = {
+  a1: ["Leans away from what's generally recommended — advising first is a common instinct, but worth raising directly if it shows up often.",
+       "Leans slightly away from established practice, though not strongly.",
+       "A flexible middle ground — neither clearly toward nor away from established practice.",
+       "Leans toward established practice.",
+       "Matches established coaching practice well."],
+  a2: ["Matches established coaching practice well.",
+       "Leans toward established practice, with some room for judgment to creep in.",
+       "A flexible middle ground.",
+       "Leans away from established practice — judgment surfacing fairly often is worth a direct conversation.",
+       "Leans away from what's generally recommended — worth a direct conversation."],
+  a8: ["Matches established coaching practice well.",
+       "Leans toward established practice.",
+       "A flexible middle ground.",
+       "Leans away from established practice — assuming rather than asking is worth raising.",
+       "Leans away from what's generally recommended — worth a direct conversation before deciding."],
+};
+// Free-text answers can't be honestly auto-scored — this is a steer for the
+// coachee's own read, not a verdict the tool is making on their behalf.
+const SECTION_A_LOOKFOR = {
+  a3: "A strong answer describes actually reflecting the pattern back to the person — not just noting it privately, and not just offering a fix.",
+  a6: "A strong answer is specific about keeping it private — no vague reassurance, and no version of the story surfacing elsewhere.",
+  a7: "A strong answer treats their own responsibility as showing up well, not as fixing the outcome — watch for guilt or over-ownership creeping in.",
+};
+const SECTION_A_GUIDED_IDS = ['a1','a2','a3','a6','a7','a8'];
+
+function renderCombinedView() {
+  const profile = load('acc_coachee_profile');
+  const partner = pendingUploadData;
+  if (!profile || !partner) { go('coachee-dashboard'); return; }
+  const recs = recommendationList(profile.dimensionAnswers);
+
+  let html = `<button class="back-link" onclick="go('coachee-dashboard')">← Back</button><h1>Side by side</h1>
+    <div class="card" style="background:var(--accent-lt);border-color:var(--accent)">
+      <strong>There's no score here on purpose</strong> for the "Specific to you" section below. Read through those rows and notice where their answer feels reassuring, and where it feels like something worth raising directly with them before deciding. One or two answers that don't quite match isn't disqualifying — it might just be the actual thing worth talking about first.
+    </div>
+    <div class="section-label">Universal baseline — how they say they generally operate</div>
+    <div class="card-sm" style="background:var(--accent-lt);border-color:var(--accent-lt)">
+      Six of these reflect established coaching practice, so we've added a note on where their answer falls. The rest are style, not merit — you'll find those compared elsewhere on this page.
+    </div>`;
+  SECTION_A_GUIDED_IDS.forEach(id => {
+    const q = SECTION_A.find(x => x.id === id);
+    const ans = partner.sectionAAnswers ? partner.sectionAAnswers[id] : null;
+    let guidance = '';
+    if (SECTION_A_GUIDANCE[id] && ans) {
+      const idx = q.options ? q.options.indexOf(ans) : -1;
+      if (idx > -1) guidance = SECTION_A_GUIDANCE[id][idx];
+    } else if (SECTION_A_LOOKFOR[id]) {
+      guidance = SECTION_A_LOOKFOR[id];
+    }
+    html += `<div class="card-sm"><div style="font-size:12px;color:var(--text3);margin-bottom:2px">${escapeHtml(q.q)}</div>${escapeHtml(ans||'(not answered)')}${guidance?`<div style="font-size:12px;color:var(--accent-dk);margin-top:6px">${escapeHtml(guidance)}</div>`:''}</div>`;
+  });
+
+  html += `<div class="section-label" style="margin-top:1rem">Compared elsewhere on this page</div>`;
+  Object.keys(CLOSEST_RELATED_A).forEach(dimId => {
+    const id = CLOSEST_RELATED_A[dimId];
+    if (id !== 'a4' && id !== 'a5') return; // only the two style baseline questions belong in this group
+    const q = SECTION_A.find(x => x.id === id);
+    const ans = partner.sectionAAnswers ? partner.sectionAAnswers[id] : null;
+    html += `<div class="card-sm"><div style="font-size:12px;color:var(--text3);margin-bottom:2px">${escapeHtml(q.q)}</div>${escapeHtml(ans||'(not answered)')}<div style="font-size:12px;margin-top:6px"><a href="#cmp-${dimId}" style="color:var(--accent-dk)">↓ compared against your own answer below</a></div></div>`;
+  });
+
+  html += `<div class="section-label" style="margin-top:1rem">Their perspective only</div>`;
+  (() => {
+    const q = SECTION_A.find(x => x.id === 'a9');
+    const ans = partner.sectionAAnswers ? partner.sectionAAnswers['a9'] : null;
+    html += `<div class="card-sm"><div style="font-size:12px;color:var(--text3);margin-bottom:2px">${escapeHtml(q.q)}</div>${escapeHtml(ans||'(not answered)')}<div style="font-size:12px;color:var(--text3);margin-top:6px">No equivalent question on your side — nothing to compare this against.</div></div>`;
+  })();
+
+  html += `<div class="section-label" style="margin-top:1rem">Specific to you</div>`;
+  recs.forEach(r => {
+    let partnerAns = null, note = null;
+    if (SECTION_B[r.id] && partner.sectionBAnswers) {
+      partnerAns = partner.sectionBAnswers[r.id];
+    } else if (CLOSEST_RELATED_A[r.id] && partner.sectionAAnswers) {
+      partnerAns = partner.sectionAAnswers[CLOSEST_RELATED_A[r.id]];
+      note = 'Closest related answer, from their general baseline';
+    }
+    html += `<div class="compare-row" id="cmp-${r.id}">
+      <div class="compare-col"><div class="lbl">What you need — ${escapeHtml(r.label)}</div>${escapeHtml(r.text)}</div>
+      <div class="compare-col"><div class="lbl">${note?escapeHtml(note):'What they said'}</div>${partnerAns?escapeHtml(partnerAns):'<span style="color:var(--text3)">No related answer captured — worth asking about directly if it matters to you.</span>'}</div>
+    </div>`;
+  });
+
+  html += `
+    <div class="section-label">Share a snapshot</div>
+    <textarea id="snapshotOut" readonly style="min-height:200px">${escapeHtml(buildSnapshotText(profile, partner, recs))}</textarea>
+    <button class="btn btn-primary btn-block" style="margin-top:.5rem" onclick="copySnapshot(event)">Copy to clipboard</button>`;
+
+  // ── Coachee's own notes, decision, and follow-through on this specific comparison ──
+  const entry = getCurrentComparisonEntry();
+  if (entry) {
+    const decisionBtn = (val, lbl) => `<button class="btn btn-sm${entry.decision===val?' btn-primary':''}" onclick="setComparisonDecision('${val}')">${lbl}</button>`;
+    html += `
+      <div class="section-label" style="margin-top:1rem">Your notes on this comparison</div>
+      <textarea id="comparisonNotes" placeholder="Good/less good things, anything to watch for...">${escapeHtml(entry.notes||'')}</textarea>
+      <button class="btn btn-block" style="margin-top:.4rem" onclick="saveComparisonNotes()">Save notes</button>
+
+      <div class="section-label" style="margin-top:1rem">Is this a fit?</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.6rem">
+        ${decisionBtn('still_deciding','Still deciding')}
+        ${decisionBtn('moving_forward','Moving forward')}
+        ${decisionBtn('not_a_fit','Not a fit')}
+      </div>
+
+      <div class="section-label" style="margin-top:1rem">Have you let them know?</div>`;
+    if (!entry.toldThem || !entry.toldThem.sent) {
+      html += `<div class="card-sm">This part's on you — Accompanying won't draft anything here. A considered, personal reply matters more than a templated one.</div>
+        <button class="btn btn-block" onclick="markToldThem()">I've let them know</button>`;
+    } else {
+      html += `<div class="card-sm">Told them on ${fmtDate(entry.toldThem.date)}.</div>
+        <textarea id="toldThemMessage" placeholder="Optionally paste what you actually said, for your own record">${escapeHtml(entry.toldThem.message||'')}</textarea>
+        <button class="btn btn-block" style="margin-top:.4rem" onclick="saveToldThemMessage()">Save</button>`;
+    }
+
+    if (entry.decision === 'moving_forward') {
+      html += `<div class="section-label" style="margin-top:1rem">Learnings from working together</div>`;
+      (entry.learnings||[]).forEach(l => {
+        html += `<div class="card-sm"><div style="font-size:11px;color:var(--text3)">${fmtDate(l.date)}</div>${escapeHtml(l.text)}</div>`;
+      });
+      html += `<textarea id="newComparisonLearning" placeholder="What's worth remembering, for this pairing or future ones?"></textarea>
+        <button class="btn btn-block" style="margin-top:.4rem" onclick="addComparisonLearning()">Add learning</button>`;
+    }
+  }
+
+  document.getElementById('app').innerHTML = html;
+}
+
+function saveComparisonNotes() {
+  const notes = document.getElementById('comparisonNotes').value;
+  updateComparisonEntry({ notes });
+  go('coachee-combined');
+}
+function setComparisonDecision(decision) {
+  updateComparisonEntry({ decision });
+  go('coachee-combined');
+}
+function markToldThem() {
+  updateComparisonEntry({ toldThem: { sent:true, date: today(), message:'' } });
+  go('coachee-combined');
+}
+function saveToldThemMessage() {
+  const entry = getCurrentComparisonEntry();
+  const message = document.getElementById('toldThemMessage').value;
+  updateComparisonEntry({ toldThem: Object.assign({}, entry.toldThem, { message }) });
+  go('coachee-combined');
+}
+function addComparisonLearning() {
+  const text = document.getElementById('newComparisonLearning').value.trim();
+  if (!text) return;
+  const entry = getCurrentComparisonEntry();
+  const learnings = (entry.learnings||[]).concat([{ date: today(), text }]);
+  updateComparisonEntry({ learnings });
+  go('coachee-combined');
+}
+
+function buildSnapshotText(profile, partner, recs) {
+  const lines = [`Accompanying — combined view (${fmtDate(today())})`, ''];
+  lines.push('WHAT I NEED');
+  recs.forEach(r => lines.push(`- ${r.label}: ${r.text}`));
+  lines.push('');
+  lines.push('WHAT THEY SAID (universal baseline)');
+  SECTION_A.forEach(q => lines.push(`- ${q.q} — ${(partner.sectionAAnswers && partner.sectionAAnswers[q.id]) || '(not answered)'}`));
+  return lines.join('\n');
+}
+function copySnapshot(evt) {
+  const ta = document.getElementById('snapshotOut');
+  ta.focus(); ta.select();
+  try { document.execCommand && document.execCommand('copy'); } catch(e) {}
+  if (navigator.clipboard) navigator.clipboard.writeText(ta.value).catch(()=>{});
+  const btn = evt.target; const old = btn.textContent; btn.textContent = '✓ Copied'; setTimeout(()=>btn.textContent=old, 1500);
+}
+
+// ── Partner: setup (persistent identity — Section A answered once) ──
+function renderPartnerSetup() {
+  const existing = load('acc_partner_identity');
+  const a = existing ? existing.sectionAAnswers : {};
+  const b = existing ? existing.sectionBAnswers : {};
+  let html = `<button class="back-link" onclick="go('partner-dashboard')">← Back</button>
+    <h1>Your baseline</h1>
+    <div class="tagline">Answered once, saved here, and included automatically every time you send a response — no need to redo this for each coachee.</div>
+    <div class="field-group"><label class="field-label">Your name <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <input type="text" id="partnerName" value="${escapeHtml(existing?existing.name||'':'')}"></div>`;
+  SECTION_A.forEach(q => {
+    html += `<div class="field-group">
+      <div class="guide-q" style="font-size:14px;margin:0 0 .5rem">"${escapeHtml(q.q)}"</div>
+      ${q.options
+        ? `<select id="a_${q.id}">
+            <option value="">— Choose —</option>
+            ${q.options.map(o=>`<option value="${escapeHtml(o)}" ${a[q.id]===o?'selected':''}>${escapeHtml(o)}</option>`).join('')}
+          </select>`
+        : `<textarea id="a_${q.id}">${escapeHtml(a[q.id]||'')}</textarea>`}
+    </div>`;
+  });
+  html += `<div class="section-label">A few more, specific to the accountability role</div>`;
+  Object.keys(SECTION_B).forEach(key => {
+    html += `<div class="field-group">
+      <div class="guide-q" style="font-size:14px;margin:0 0 .5rem">"${escapeHtml(SECTION_B[key].q)}"</div>
+      <textarea id="b_${key}">${escapeHtml(b[key]||'')}</textarea>
+    </div>`;
+  });
+  html += `<button class="btn btn-primary btn-block" onclick="savePartnerIdentity()">Save my baseline</button>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+function savePartnerIdentity() {
+  const sectionAAnswers = {};
+  let allAnswered = true;
+  SECTION_A.forEach(q => { const v = document.getElementById('a_'+q.id).value.trim(); if (!v) allAnswered = false; sectionAAnswers[q.id] = v; });
+  const sectionBAnswers = {};
+  Object.keys(SECTION_B).forEach(key => { const v = document.getElementById('b_'+key).value.trim(); if (!v) allAnswered = false; sectionBAnswers[key] = v; });
+  if (!allAnswered) { alert('Please answer everything — all of this is included whenever you send a response.'); return; }
+  save('acc_partner_identity', { name: document.getElementById('partnerName').value.trim(), sectionAAnswers, sectionBAnswers, savedDate: today() });
+  go('partner-dashboard');
+}
+
+// ── Partner: dashboard ───────────────────────────────────────
+// No coachee file is ever involved here — the response is generated purely
+// from the partner's own saved baseline, so there's nothing to wait on and
+// nothing that could bias it. See "sent log" below for how a record of who
+// it went to gets kept, since without a coachee file there's no other way
+// for the app to know.
+function renderPartnerDashboard() {
+  const identity = load('acc_partner_identity');
+  let html = `<button class="back-link" onclick="go('home')">← Back</button><h1>Being someone's accountability partner</h1>`;
+  if (!identity) {
+    html += `<div class="tagline">Start with a short baseline about your own style — about 5 minutes. It's saved, so you'll only need to do this once even if you're a partner for more than one person.</div>
+      <button class="btn btn-primary btn-block" onclick="go('partner-setup')">Answer the baseline questions</button>`;
+    document.getElementById('app').innerHTML = html;
+    return;
+  }
+  const sentLog = load('acc_partner_sent_log') || [];
+  html += `<div class="tagline">${identity.name?escapeHtml(identity.name)+' — ':''}baseline last updated ${fmtDate(identity.savedDate)}.</div>
+    <div class="section-label">Sending a response</div>
+    <button class="btn btn-primary btn-block" onclick="go('partner-send')">Review &amp; send your response</button>
+    <div class="section-label">Responses you've sent</div>`;
+  if (sentLog.length === 0) {
+    html += `<div class="empty-state">Nothing logged yet — this fills in each time you send a response and choose to record it.</div>`;
+  } else {
+    sentLog.forEach(e => {
+      html += `<button class="manage-row" onclick="openPartnerSentDetail('${e.id}')">
+        <div class="manage-row-title">${e.sentTo?escapeHtml(e.sentTo):'Unnamed'}</div>
+        <div class="manage-row-meta">Sent ${fmtDate(e.sentDate)} · ${OUTCOME_BADGE[e.outcome]||'Awaiting word'}</div>
+      </button>`;
+    });
+  }
+  html += `<div class="section-label">Housekeeping</div>
+    <button class="btn btn-block" onclick="go('partner-setup')">Update my baseline</button>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+// ── Partner: review before sending — everything's already answered, so this
+// is a confirmation step, not a form. Nothing coachee-specific is shown or
+// asked for here, on purpose.
+function renderPartnerSend() {
+  const identity = load('acc_partner_identity');
+  if (!identity) { go('partner-dashboard'); return; }
+  let html = `<button class="back-link" onclick="go('partner-dashboard')">← Back</button>
+    <h1>Ready to send</h1>
+    <div class="tagline">Your saved baseline answers below — review them, or edit your baseline first if anything's changed.</div>`;
+  SECTION_A.forEach(q => {
+    html += `<div class="card-sm"><div style="font-size:12px;color:var(--text3);margin-bottom:2px">${escapeHtml(q.q)}</div>${escapeHtml(identity.sectionAAnswers[q.id]||'')}</div>`;
+  });
+  Object.keys(SECTION_B).forEach(key => {
+    html += `<div class="card-sm"><div style="font-size:12px;color:var(--text3);margin-bottom:2px">${escapeHtml(SECTION_B[key].q)}</div>${escapeHtml((identity.sectionBAnswers&&identity.sectionBAnswers[key])||'')}</div>`;
+  });
+  html += `
+    <button class="btn btn-primary btn-block" style="margin-top:1rem" onclick="downloadPartnerExport()">Download my response to send</button>
+    <button class="btn btn-block" onclick="go('partner-setup')">Edit my baseline first</button>`;
+  document.getElementById('app').innerHTML = html;
+}
+
+function downloadPartnerExport() {
+  const identity = load('acc_partner_identity');
+  const payload = {
+    type: 'accompanying_partner_response',
+    exportedDate: today(),
+    partnerName: identity.name || '',
+    sectionAAnswers: identity.sectionAAnswers,
+    sectionBAnswers: identity.sectionBAnswers,
+  };
+  triggerDownload(`accompanying-response-${today()}.json`, JSON.stringify(payload, null, 2));
+  go('partner-log-new');
+}
+
+// ── Partner: optional log entry for who a response was sent to — kept by
+// hand, since without a coachee file there's nothing the app can infer.
+function renderPartnerLogNew() {
+  let html = `<h1>Downloaded</h1>
+    <div class="tagline">Send that file to them however you'd normally send a file. Want to keep a record of who it went to?</div>
+    <div class="field-group"><label class="field-label">Who did you send this to? <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
+      <input type="text" id="sentTo"></div>
+    <button class="btn btn-primary btn-block" onclick="savePartnerSentLog()">Save to my log</button>
+    <button class="btn btn-block" onclick="go('partner-dashboard')">Skip</button>`;
+  document.getElementById('app').innerHTML = html;
+}
+function savePartnerSentLog() {
+  const name = document.getElementById('sentTo').value.trim();
+  const log = load('acc_partner_sent_log') || [];
+  log.unshift({ id: uid(), sentTo: name, sentDate: today(), outcome: 'unknown', learnings: [] });
+  save('acc_partner_sent_log', log);
+  go('partner-dashboard');
+}
+
+function renderPartnerSentLog() {
+  const log = load('acc_partner_sent_log') || [];
+  let html = `<button class="back-link" onclick="go('partner-dashboard')">← Back</button><h1>Your sent responses</h1>`;
+  if (log.length === 0) {
+    html += `<div class="empty-state">Nothing logged yet.</div>`;
+  } else {
+    log.forEach(e => {
+      html += `<button class="manage-row" onclick="openPartnerSentDetail('${e.id}')">
+        <div class="manage-row-title">${e.sentTo?escapeHtml(e.sentTo):'Unnamed'}</div>
+        <div class="manage-row-meta">Sent ${fmtDate(e.sentDate)} · ${OUTCOME_BADGE[e.outcome]||'Awaiting word'}</div>
+      </button>`;
+    });
+  }
+  document.getElementById('app').innerHTML = html;
+}
+function openPartnerSentDetail(id) { currentPartnerLogId = id; go('partner-sent-detail'); }
+function getCurrentPartnerLogEntry() {
+  const log = load('acc_partner_sent_log') || [];
+  return log.find(e => e.id === currentPartnerLogId);
+}
+function updatePartnerLogEntry(patch) {
+  const log = load('acc_partner_sent_log') || [];
+  const idx = log.findIndex(e => e.id === currentPartnerLogId);
+  if (idx === -1) return;
+  log[idx] = Object.assign({}, log[idx], patch);
+  save('acc_partner_sent_log', log);
+}
+function renderPartnerSentDetail() {
+  const entry = getCurrentPartnerLogEntry();
+  if (!entry) { go('partner-sent-log'); return; }
+  const outcomeBtn = (val, lbl) => `<button class="btn btn-sm${entry.outcome===val?' btn-primary':''}" onclick="setPartnerLogOutcome('${val}')">${lbl}</button>`;
+  let html = `<button class="back-link" onclick="go('partner-dashboard')">← Back</button>
+    <h1>${entry.sentTo?escapeHtml(entry.sentTo):'Unnamed'}</h1>
+    <div class="tagline">Sent ${fmtDate(entry.sentDate)}.</div>
+    <div class="section-label">Did this lead anywhere?</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:.75rem">
+      ${outcomeBtn('unknown','Awaiting word')}
+      ${outcomeBtn('moving_forward','Moving forward')}
+      ${outcomeBtn('not_selected','Not selected')}
+    </div>`;
+  if (entry.outcome === 'moving_forward') {
+    html += `<div class="section-label">Learnings from working together</div>`;
+    (entry.learnings||[]).forEach(l => {
+      html += `<div class="card-sm"><div style="font-size:11px;color:var(--text3)">${fmtDate(l.date)}</div>${escapeHtml(l.text)}</div>`;
+    });
+    html += `<textarea id="newPartnerLearning" placeholder="What's worth remembering, for this pairing or future ones?"></textarea>
+      <button class="btn btn-block" style="margin-top:.4rem" onclick="addPartnerLearning()">Add learning</button>`;
+  }
+  document.getElementById('app').innerHTML = html;
+}
+function setPartnerLogOutcome(outcome) { updatePartnerLogEntry({ outcome }); go('partner-sent-detail'); }
+function addPartnerLearning() {
+  const text = document.getElementById('newPartnerLearning').value.trim();
+  if (!text) return;
+  const entry = getCurrentPartnerLogEntry();
+  const learnings = (entry.learnings||[]).concat([{ date: today(), text }]);
+  updatePartnerLogEntry({ learnings });
+  go('partner-sent-detail');
+}
+
+render();
+document.getElementById('footerYear').textContent = new Date().getFullYear();
+
+</script>
+</body>
+</html>
