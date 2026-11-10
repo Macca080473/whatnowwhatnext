@@ -379,6 +379,54 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   box-shadow:0 2px 10px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center}
 .feedback-fab .badge{position:absolute;top:-4px;right:-4px}
 @media print{.feedback-fab{display:none}}
+
+/* ── Phone header (261109_v1): short Jot label; Feedback and Manage live in a ⋯ menu ── */
+.hdr .hdr-more{display:none}
+.hdr-menu{position:absolute;right:8px;top:56px;background:var(--bg,#fff);border:1px solid var(--border2);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.18);padding:4px;z-index:200;min-width:190px}
+.hdr-menu.hidden{display:none}
+.hdr-menu button{display:flex;align-items:center;width:100%;text-align:left;background:none;border:0;padding:12px 14px;font-size:15px;color:var(--text);border-radius:8px;cursor:pointer}
+.hdr-menu button:hover{background:var(--bg2)}
+@media (max-width:560px){
+  .hdr{padding:0 .75rem}
+  .hdr-long{display:none}
+  #hdrFeedbackBtn,#hdrManageBtn{display:none}
+  .hdr .hdr-more{display:inline-block}
+  #workspaceSwitcher{max-width:110px}
+}
+@media (min-width:561px){.hdr-menu{display:none !important}}
+
+/* ── Phone sub-navigation (261109_v1): one-word labels in a single scrollable row ── */
+.st-short{display:none}
+@media (max-width:560px){
+  .subtabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%}
+  .subtabs::-webkit-scrollbar{display:none}
+  .subtabs button{flex:0 0 auto;white-space:nowrap;padding:8px 14px}
+  .st-full{display:none}
+  .st-short{display:inline}
+}
+
+/* ── Importance tags (261109_v1): dots on phones, words elsewhere; never stretch tall in flex rows ── */
+.tag{align-self:flex-start}
+.imp-dots{display:none;letter-spacing:2px;font-size:10px;line-height:1.4}
+@media (max-width:560px){
+  .imp-tag .imp-word{display:none}
+  .imp-tag .imp-dots{display:inline}
+  .imp-tag{padding:3px 8px}
+}
+
+/* ── Phone list rows (261109_v1): text gets the full width; ranking and buttons drop to a line below ── */
+@media (max-width:560px){
+  main .manage-row{flex-wrap:wrap;row-gap:6px}
+  main .manage-row .manage-row-title{flex:1 1 100%}
+  main .manage-row > .tag, main .manage-row > .manage-row-meta{flex:0 0 auto}
+  .action-card{flex-wrap:wrap}
+  .action-card > .action-info{flex:1 1 0;min-width:0}
+  .action-card > .action-btns{flex:1 1 100%;flex-wrap:wrap;padding-left:30px}
+  /* A card inside a card (for example Energisers & drainers) gives its text more room: drop the inner frame */
+  .card .card{border:0;background:transparent;box-shadow:none;padding:.5rem 0;margin-bottom:.25rem}
+}
+
+.hdr .btn{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -394,11 +442,13 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
     <div class="hdr-title">Being and Becoming</div>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
-    <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff" onclick="openQuickCapture()" title="Jot a thought onto your Scratchpad">+ Jot it down</button>
+    <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff" onclick="openQuickCapture()" title="Jot a thought onto your Scratchpad" aria-label="Jot it down">+ Jot<span class="hdr-long"> it down</span></button>
     <select id="workspaceSwitcher" style="width:auto;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3);font-size:13px;padding:6px 10px"></select>
-    <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff;position:relative" onclick="openFeedbackForm()">Feedback<span id="feedbackHdrBadge" class="badge hidden" style="position:absolute;top:-6px;right:-6px"></span></button>
-    <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff" onclick="openManageWorkspaces()">Manage</button>
+    <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff;position:relative" onclick="openFeedbackForm()" id="hdrFeedbackBtn">Feedback<span id="feedbackHdrBadge" class="badge hidden" style="position:absolute;top:-6px;right:-6px"></span></button>
+    <button class="btn btn-secondary btn-sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff" onclick="openManageWorkspaces()" id="hdrManageBtn">Manage</button>
+    <button class="btn btn-secondary btn-sm hdr-more" id="hdrMoreBtn" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff;position:relative" aria-label="More: Feedback and Manage workspaces" aria-haspopup="true" aria-expanded="false" onclick="toggleHdrMenu(event)">⋯<span id="hdrMoreBadge" class="badge hidden" style="position:absolute;top:-6px;right:-6px"></span></button>
   </div>
+  <div id="hdrMenu" class="hdr-menu hidden" role="menu"><button role="menuitem" onclick="hideHdrMenu();openFeedbackForm()">Feedback<span id="hdrMenuBadge" class="badge hidden" style="margin-left:6px"></span></button><button role="menuitem" onclick="hideHdrMenu();openManageWorkspaces()">Manage workspaces</button></div>
 </header>
 
 <button id="feedbackFab" class="feedback-fab" onclick="openFeedbackForm()" title="Give feedback">
@@ -439,7 +489,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   <div id="learnings" class="view"></div>
 </main>
 
-<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261103_v1</span></footer>
+<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261110_v1</span></footer>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalBox">
@@ -785,8 +835,11 @@ function importanceLabel(val) {
 function importanceClass(val) {
   return val==='very' ? 'flag-very' : val==='important' ? 'flag-important' : val==='somewhat' ? 'flag-somewhat' : '';
 }
+function importanceDots(val) { return val==='very' ? '\u25cf\u25cf\u25cf' : val==='important' ? '\u25cf\u25cf\u25cb' : val==='somewhat' ? '\u25cf\u25cb\u25cb' : '\u25cb\u25cb\u25cb'; }
+// Words on wider screens, dots on phones (the CSS swaps them); the full word stays as the tooltip and accessible name.
+function importanceInner(val) { return `<span class="imp-word">${importanceLabel(val)}</span><span class="imp-dots" aria-hidden="true">${importanceDots(val)}</span>`; }
 function importanceTagHtml(val, onclickExpr) {
-  return `<span class="tag ${importanceClass(val)}" style="cursor:pointer" onclick="${onclickExpr}">${importanceLabel(val)}</span>`;
+  return `<span class="tag ${importanceClass(val)} imp-tag" style="cursor:pointer" role="button" tabindex="0" title="${importanceLabel(val)}" aria-label="${importanceLabel(val)}" onclick="${onclickExpr}">${importanceInner(val)}</span>`;
 }
 // Old Low/Medium/High priority -> the new importance scale, for one-time migration.
 function priorityToImportance(priority) {
@@ -818,7 +871,7 @@ function wsRemove(key) { try { localStorage.removeItem(nsKey(key)); } catch(e) {
 function listWorkspaces() {
   try {
     const stored = JSON.parse(localStorage.getItem(GLOBAL_WORKSPACES_KEY));
-    if (stored && stored.length) return stored;
+    if (stored && stored.length) { refreshExampleIfStale(stored); return stored; }
   } catch(e) {}
   // First-ever load: seed "Me" (blank) alongside a pre-populated "Example" workspace,
   // so there's something real to explore before adding your own content. See
@@ -826,7 +879,25 @@ function listWorkspaces() {
   const seed = [{ id:'default', name:'Me' }, { id:EXAMPLE_WS_ID, name:'Example' }];
   localStorage.setItem(GLOBAL_WORKSPACES_KEY, JSON.stringify(seed));
   seedExampleWorkspace();
+  try { localStorage.setItem(EXAMPLE_SEED_KEY, EXAMPLE_SEED_VERSION); } catch(e) {}
   return seed;
+}
+// The Example workspace is sample data. When its content is improved (EXAMPLE_SEED_VERSION goes up),
+// an Example workspace seeded by an older build is cleared and re-seeded once, so testers see the new content.
+// Workspaces the person created themselves are never touched.
+const EXAMPLE_SEED_VERSION = '261110';
+const EXAMPLE_SEED_KEY = 'bb_example_seed_version';
+function refreshExampleIfStale(list) {
+  try {
+    if (localStorage.getItem(EXAMPLE_SEED_KEY) === EXAMPLE_SEED_VERSION) return;
+    const hasExample = list.some(w => w.id === EXAMPLE_WS_ID);
+    if (hasExample) {
+      const p = `bb_ws_${EXAMPLE_WS_ID}_`;
+      Object.keys(localStorage).filter(k => k.startsWith(p)).forEach(k => localStorage.removeItem(k));
+      seedExampleWorkspace();
+    }
+    localStorage.setItem(EXAMPLE_SEED_KEY, EXAMPLE_SEED_VERSION);
+  } catch(e) {}
 }
 function saveWorkspaceList(list) { localStorage.setItem(GLOBAL_WORKSPACES_KEY, JSON.stringify(list)); }
 function getActiveWorkspaceId() {
@@ -1221,11 +1292,11 @@ function destroyAllCharts() { Object.keys(charts).forEach(destroyChart); }
 // Single source of truth for tab id -> label, used by both the wide-screen tab row
 // (already in the HTML) and the narrow-screen dropdown menu built from this list.
 const SECTIONS = [
-  { id:'being', nav:'Being', full:'Who I am', subs:[['values','Values & meaning'],['strengths','Strengths & saboteurs'],['personality','Personality & styles'],['energy','Energisers & drainers'],['wsc','Will, skill & connectivity']] },
-  { id:'noticing', nav:'Noticing', full:"What I'm noticing", subs:[['learnings','Learnings'],['scratchpad','Scratchpad']] },
-  { id:'planning', nav:'Planning', full:"What I'm planning", subs:[['goals','Goals'],['relevance','Option Analysis'],['habits','Habits']] },
-  { id:'becoming', nav:'Becoming', full:"Who I'm becoming", subs:[['actions','Actions'],['challenges','Solution Builder'],['learnconnect','Learn & Connect'],['roadmap','Roadmap']] },
-  { id:'reviewing', nav:'Reviewing', full:"What I'm reviewing", subs:[['snapshot','Summary'],['ondemand','On-demand snapshots']] },
+  { id:'being', nav:'Being', full:'Who I am', subs:[['values','Values & meaning','Values'],['strengths','Strengths & saboteurs','Strengths'],['personality','Personality & styles','Personality'],['energy','Energisers & drainers','Energy'],['wsc','Will, skill & connectivity','Will-Skill-Conn.']] },
+  { id:'noticing', nav:'Noticing', full:"What I'm noticing", subs:[['learnings','Learnings','Learnings'],['scratchpad','Scratchpad','Scratchpad']] },
+  { id:'planning', nav:'Planning', full:"What I'm planning", subs:[['goals','Goals','Goals'],['relevance','Option Analysis','Options'],['habits','Habits','Habits']] },
+  { id:'becoming', nav:'Becoming', full:"Who I'm becoming", subs:[['actions','Actions','Actions'],['challenges','Solution Builder','Solutions'],['learnconnect','Learn & Connect','Learn'],['roadmap','Roadmap','Roadmap']] },
+  { id:'reviewing', nav:'Reviewing', full:"What I'm reviewing", subs:[['snapshot','Summary','Summary'],['ondemand','On-demand snapshots','Snapshots']] },
 ];
 const PAGE_LABEL = { home:'Home', instructions:'Instructions', moment:'Home' };
 const SECTION_OF = {};
@@ -1316,7 +1387,9 @@ function renderSectionBar(id) {
     <div class="eyebrow">Tab: ${escapeHtml(sec.nav)}</div>
     <div class="section-title" style="font-size:26px">${escapeHtml(sec.full)}</div>
     <div class="subtabs">${sec.subs.filter(p => isTabVisible(p[0])).map(p =>
-      `<button class="${p[0]===id?'on':''}" onclick="showView('${p[0]}')">${escapeHtml(p[1])}${p[0]==='actions' && openCount>0 ? ` <span class="badge" id="actionPillBadge">${openCount}</span>` : ''}</button>`).join('')}</div>`;
+      `<button class="${p[0]===id?'on':''}" onclick="showView('${p[0]}')" aria-label="${escapeHtml(p[1])}"><span class="st-full">${escapeHtml(p[1])}</span><span class="st-short">${escapeHtml(p[2]||p[1])}</span>${p[0]==='actions' && openCount>0 ? ` <span class="badge" id="actionPillBadge">${openCount}</span>` : ''}</button>`).join('')}</div>`;
+  const stEl = el.querySelector('.subtabs'), stOn = stEl && stEl.querySelector('button.on');
+  if (stEl && stOn) stEl.scrollLeft = Math.max(0, stOn.offsetLeft - (stEl.clientWidth - stOn.offsetWidth) / 2);
 }
 function renderView(id) {
   const renders = {
@@ -2214,7 +2287,7 @@ function renderValues() {
       const latest = list.length ? list[list.length-1] : null;
       html += `<div class="card-sm" style="margin-bottom:.75rem">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}${v.importance?` <span class="tag ${importanceClass(v.importance)}" style="font-size:10px">${importanceLabel(v.importance)}</span>`:''}${brightSpotsFor(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🌟 ${brightSpotsFor(v.id).length}</span>`:''}${habitsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🔁 ${habitsForValue(v.id).length}</span>`:''}${goalsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🎯 ${goalsForValue(v.id).length}</span>`:''}</span>
+          <span style="font-weight:500;font-size:14px">${escapeHtml(v.label)}${v.importance?` <span class="tag ${importanceClass(v.importance)} imp-tag" style="font-size:10px" title="${importanceLabel(v.importance)}" aria-label="${importanceLabel(v.importance)}">${importanceInner(v.importance)}</span>`:''}${brightSpotsFor(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🌟 ${brightSpotsFor(v.id).length}</span>`:''}${habitsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🔁 ${habitsForValue(v.id).length}</span>`:''}${goalsForValue(v.id).length?` <span style="font-size:11px;font-weight:400;color:var(--accent)">· 🎯 ${goalsForValue(v.id).length}</span>`:''}</span>
           ${latest?`<span style="font-size:18px;font-weight:500;color:var(--accent)">${latest.value}</span>`:''}
         </div>
         ${v.notes?`<div style="font-size:13px;color:var(--text2);margin-top:2px">${escapeHtml(v.notes)}</div>`:''}
@@ -2243,7 +2316,7 @@ function renderValues() {
           ${importTagHtml(b)}<span>${fmtDate(b.date)}</span>
           ${v?`<span style="color:var(--accent)">${escapeHtml(v.label)}</span>`:''}
           ${relatedGoalTagHtml(b.goalId)}
-          ${b.importance?`<span class="tag ${importanceClass(b.importance)}">${importanceLabel(b.importance)}</span>`:''}
+          ${b.importance?`<span class="tag ${importanceClass(b.importance)} imp-tag" title="${importanceLabel(b.importance)}" aria-label="${importanceLabel(b.importance)}">${importanceInner(b.importance)}</span>`:''}
         </div>
         <div class="action-btns" style="margin-top:6px">
           <button class="btn btn-secondary btn-sm" onclick="openEditBrightSpot('${b.id}')">Edit</button>
@@ -6263,7 +6336,7 @@ function renderHabits() {
           <div style="font-weight:500;font-size:14px">${escapeHtml(h.label)}</div>
           <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
             <span class="tag">${habitStatusLabel(h.status)}</span>
-            ${h.importance?`<span class="tag ${importanceClass(h.importance)}">${importanceLabel(h.importance)}</span>`:''}
+            ${h.importance?`<span class="tag ${importanceClass(h.importance)} imp-tag" title="${importanceLabel(h.importance)}" aria-label="${importanceLabel(h.importance)}">${importanceInner(h.importance)}</span>`:''}
             ${vTags}${gTags}${dTags}
           </div>
         </div>
@@ -6590,7 +6663,7 @@ function renderLearnings() {
       <div class="card-sm" style="margin-bottom:.625rem">
         <div style="display:flex;justify-content:space-between;gap:8px">
           <span class="action-desc" style="margin-bottom:0">${escapeHtml(l.description)}</span>
-          ${l.importance?`<span class="tag ${importanceClass(l.importance)}">${importanceLabel(l.importance)}</span>`:''}
+          ${l.importance?`<span class="tag ${importanceClass(l.importance)} imp-tag" title="${importanceLabel(l.importance)}" aria-label="${importanceLabel(l.importance)}">${importanceInner(l.importance)}</span>`:''}
         </div>
         <div class="action-meta" style="margin-top:4px">
           ${importTagHtml(l)}<span>${fmtDate(l.date)}</span>
@@ -6934,7 +7007,7 @@ function energiserDrainerColumnHtml(type, label) {
       html += `<div class="card-sm" style="margin-bottom:.625rem">
         <div style="display:flex;justify-content:space-between;gap:8px">
           <span style="font-size:13px;font-weight:500">${escapeHtml(e.description)}</span>
-          ${e.importance?`<span class="tag ${importanceClass(e.importance)}">${importanceLabel(e.importance)}</span>`:''}
+          ${e.importance?`<span class="tag ${importanceClass(e.importance)} imp-tag" title="${importanceLabel(e.importance)}" aria-label="${importanceLabel(e.importance)}">${importanceInner(e.importance)}</span>`:''}
         </div>
         ${e.notes?`<div style="font-size:13px;color:var(--text2);margin-top:2px">${escapeHtml(e.notes)}</div>`:''}
         ${(valueTags||sourceLearning)?`<div class="action-meta" style="margin-top:4px">${valueTags}${sourceLearning?`<span style="color:var(--text3)">↩ from a Learning</span>`:''}</div>`:''}
@@ -8161,6 +8234,14 @@ function seedExampleWorkspace() {
   const vAmbitious = { id: uidE(), label: 'Ambitious', type: 'extrinsic', notes: '', shareTrend: false, createdDate: daysAgo(180) };
   const vDependable = { id: uidE(), label: 'Dependable', type: 'extrinsic', notes: '', shareTrend: false, createdDate: daysAgo(180) };
   const VALUES_SEED = [vCreative, vCurious, vHonest, vPresent, vConnective, vGenerous, vAmbitious, vDependable];
+  const VAL_IMP = { Creative:'very', Honest:'very', Connective:'important', Present:'important', Curious:'important', Ambitious:'somewhat', Generous:'somewhat', Dependable:'important' };
+  const VAL_NOTES = {
+    Curious: "Why a completely different path doesn't scare me as much as it maybe should.",
+    Present: "Hardest to live up to whenever my phone is within reach.",
+    Ambitious: "A useful engine, but I want to check it's pointing somewhere I've chosen.",
+    Dependable: "Being the one people can rely on. Also the reason I struggle to say no.",
+  };
+  VALUES_SEED.forEach(v => { v.importance = VAL_IMP[v.label] || null; if (!v.notes && VAL_NOTES[v.label]) v.notes = VAL_NOTES[v.label]; });
   put(SK.values, VALUES_SEED);
   put(SK.valueScores, [
     { id: uidE(), valueId: vCreative.id, date: daysAgo(150), value: 7 },
@@ -8174,6 +8255,11 @@ function seedExampleWorkspace() {
     { id: uidE(), valueId: vConnective.id, date: daysAgo(15), value: 7 },
     { id: uidE(), valueId: vAmbitious.id, date: daysAgo(90), value: 8 },
     { id: uidE(), valueId: vAmbitious.id, date: daysAgo(10), value: 7 },
+    { id: uidE(), valueId: vCurious.id, date: daysAgo(110), value: 7 },
+    { id: uidE(), valueId: vCurious.id, date: daysAgo(25), value: 8 },
+    { id: uidE(), valueId: vDependable.id, date: daysAgo(70), value: 8 },
+    { id: uidE(), valueId: vDependable.id, date: daysAgo(18), value: 6 },
+    { id: uidE(), valueId: vGenerous.id, date: daysAgo(40), value: 7 },
   ]);
 
   // ── Goals ───────────────────────────────────────────────────
@@ -8226,13 +8312,27 @@ function seedExampleWorkspace() {
   OCEAN_ORDER.forEach((label, i) => {
     TRAITS_SEED.push({ id: uidE(), category: 'personality', label, notes: OCEAN_NOTES[label] || '', notesDetail: '', importance: null, percent: [62, 58, 70, 55, 40][i] || 50 });
   });
+  TRAITS_SEED.push(
+    { id: uidE(), category: 'social-style', label: 'Driver', notes: "Direct and quick to decide. I'd rather get moving than talk it round again, which is great for momentum and less great when a colleague needs more time to think.", importance: 'important' },
+    { id: uidE(), category: 'conflict-style', label: 'Accommodating', notes: "My default. I give way to keep things smooth, then resent it later. It's the 'yes' to leading things before I've checked I want them.", importance: 'very', priority: 1, score: 7, styleDescription: CONFLICT_STYLE_REFERENCE['Accommodating'] },
+    { id: uidE(), category: 'conflict-style', label: 'Collaborating', notes: "What I'm aiming for: saying what I want and still bringing the other person with me.", importance: 'important', priority: 2, score: 5, styleDescription: CONFLICT_STYLE_REFERENCE['Collaborating'] },
+    { id: uidE(), category: 'leadership-type', label: 'VIEH \u2014 the creative team-builder', notes: "Lines up with the leader I'd like to be: someone who makes things alongside people, rather than directing from a distance.", importance: null },
+    { id: uidE(), category: 'meaning', label: '', notes: "I know my work matters to some people, but I'm not sure it's pointing where I want my life to go. Mostly I feel it when I'm making things and when someone I've helped has a breakthrough.", importance: null, presence: 24, search: 29 }
+  );
   put(SK.traits, TRAITS_SEED);
   put(SK.behavioural, {
     updatedDate: daysAgo(120), customFields: [],
     naturalStyle: 'Direct, fast-moving, prefers doing over discussing.',
     adaptedStyle: "Trying to be more consensus-seeking whenever they're asked to lead something — doesn't always come naturally yet.",
     valueToTeam: 'Clear-headed under pressure, and genuinely wants the people around them to do work they\'re proud of.',
-    idealEnvironment: '', stressTriggers: '', communicationTips: '', managementTips: '', motivationTips: '',
+    idealEnvironment: 'A small team that makes things together, with a protected block each week for hands-on work and not too many back-to-back meetings.',
+    stressTriggers: "Status meetings that go nowhere, being asked to lead something I haven't chosen, and an inbox I can't see the bottom of.",
+    communicationTips: 'Be direct and brief, and give me the headline first. If something is bothering me I may not say so unless you ask.',
+    managementTips: "Ask what I want to grow into before offering the next step. I'll say yes to almost anything, so check I mean it.",
+    motivationTips: "Making something I'm proud of, and seeing someone I've helped succeed.",
+    responseToChallenge: "I speed up and take it on myself. It helps when I pause and ask what I actually want from it.",
+    processingStyle: 'I think by doing and talking it through out loud, rather than by reflecting on my own.',
+    helpSeekingTendency: "Slow to ask. I tend to wait until I'm well past stuck, so a regular check-in with someone I trust helps.",
   });
 
   // ── Skills, Will, Connectivity ──────────────────────────────
@@ -8284,6 +8384,10 @@ function seedExampleWorkspace() {
     { id: uidE(), date: daysAgo(25), description: "Told my manager honestly that I'm not sure I want to go down the people-management route, even though it feels like the obvious next step.", valueId: vHonest.id, goalId: null },
   ]);
 
+  put(SK.brightSpots, [...JSON.parse(localStorage.getItem(wsPrefix + SK.brightSpots) || '[]'),
+    { id: uidE(), date: daysAgo(17), description: "Left the office on time two evenings running and was properly present at dinner. Nobody noticed except me.", valueId: vPresent.id, goalId: gFamily.id },
+  ]);
+
   // ── Habits ──────────────────────────────────────────────────
   const hFriday = uidE();
   put(SK.habits, [
@@ -8306,7 +8410,8 @@ function seedExampleWorkspace() {
   // ── Actions & Learnings (with Themes) ───────────────────────
   const aBlockFriday = { id: uidE(), createdDate: daysAgo(40), description: 'Block Friday mornings for hands-on work — no meetings', dueDate: '', context: 'Career & work', goalId: gProud.id, notes: '', completed: true, completedDate: daysAgo(9) };
   const aAskTeam = { id: uidE(), createdDate: daysAgo(20), description: 'Ask the colleague I\'m mentoring directly what would actually be helpful from me', dueDate: '', context: 'Career & work', goalId: gLeader.id, notes: '', completed: false, completedDate: null };
-  put(SK.actions, [aBlockFriday, aAskTeam]);
+  const aTalkManager = { id: uidE(), createdDate: daysAgo(6), description: 'Book 30 minutes with my manager to talk about which direction I want to grow in', dueDate: daysAgo(-9), context: 'Career & work', goalId: gMoreSenior.id, notes: '', completed: false, completedDate: null };
+  put(SK.actions, [aBlockFriday, aAskTeam, aTalkManager]);
 
   const thmSuccess = { id: uidE(), label: 'Success on my own terms', description: "Getting clearer on what actually counts as a win for me, rather than assuming it's whatever comes next." };
   const thmPermission = { id: uidE(), label: 'Giving myself permission', description: "The blockers are rarely time or resources — they're usually me not letting myself." };
@@ -8327,6 +8432,46 @@ function seedExampleWorkspace() {
     { id: uidE(), type: 'energiser', description: 'A proper weekend hike with no phone signal', valueIds: [vPresent.id], notes: '', importance: 'very', sourceLearningId: null, date: daysAgo(35) },
     { id: uidE(), type: 'energiser', description: 'Cooking a full meal from scratch for people I love, no recipe, just winging it', valueIds: [vGenerous.id], notes: '', importance: 'important', sourceLearningId: null, date: daysAgo(33) },
     { id: uidE(), type: 'drainer', description: "Realising I've checked my phone during a conversation that actually mattered", valueIds: [vPresent.id], notes: '', importance: 'important', sourceLearningId: null, date: daysAgo(28) },
+  ]);
+
+  // ── Solution Builder: one challenge, part-way through ───────
+  const rYes = uidE(), rGuilt = uidE(), rTime = uidE(), rClear = uidE();
+  put(SK.challenges, [{
+    id: 'ch_' + uidE(), created: daysAgo(14), updated: daysAgo(5), stage: 4, status: 'working',
+    what: "I say yes to leading things before I've checked it's a direction I actually want to grow in.",
+    sorted: "I've got to a point where I notice it happening, and I'm talking to my manager about direction rather than just accepting whatever comes next.",
+    tried: "Telling myself to pause before answering. It works for about a week.",
+    others: "My manager keeps offering me larger pieces of work, which I read as a compliment.",
+    reasons: [
+      { id: rYes, type: 'emotional', text: "Saying no feels like letting people down.", ctl: 'control' },
+      { id: rGuilt, type: 'identity', text: "Being the dependable one is part of how I see myself.", ctl: 'control' },
+      { id: rTime, type: 'practical', text: "I rarely have a clear gap to think before I'm asked.", ctl: 'influence' },
+      { id: rClear, type: 'rational', text: "I don't yet know which direction I want, so there is nothing to say no in favour of.", ctl: 'control' },
+    ],
+    cost: "Another year of busy work that isn't mine, and less time making things.",
+    protect: "My Friday making time, and being someone people can rely on.",
+    top: [rYes, rClear, rTime],
+    opts: {
+      [rYes]: { options: "Practise a friendly holding line: 'Let me come back to you tomorrow.'", smallest: "Use the holding line once this week." },
+      [rClear]: { options: "Use my Option Analysis to compare the three directions. Talk to someone who teaches.", smallest: "Book the conversation with my manager." },
+      [rTime]: { options: "Ask for requests in writing. Keep a 15-minute gap after meetings.", smallest: "Block a gap after Tuesday's meetings." },
+    },
+    patternsNote: "My Hyper-Achiever will want to go all in again before I've decided.",
+    review: daysAgo(-14),
+  }]);
+
+  // ── Summary: what Sam is focusing on right now ──────────────
+  put(SK.focusItems, [
+    { type: 'goal', id: gMoreSenior.id },
+    { type: 'value', id: vCreative.id },
+    { type: 'action', id: aTalkManager.id },
+    { type: 'trait', id: TRAITS_SEED.find(t => t.category === 'saboteurs').id },
+  ]);
+  put(SK.focusHistory, [
+    { id: uidE(), type: 'goal', itemId: gMoreSenior.id, label: gMoreSenior.title, action: 'prioritised', date: daysAgo(12) },
+    { id: uidE(), type: 'value', itemId: vCreative.id, label: 'Creative', action: 'prioritised', date: daysAgo(12) },
+    { id: uidE(), type: 'trait', itemId: TRAITS_SEED.find(t => t.category === 'saboteurs').id, label: 'Hyper-Achiever', action: 'prioritised', date: daysAgo(9) },
+    { id: uidE(), type: 'action', itemId: aTalkManager.id, label: aTalkManager.description, action: 'prioritised', date: daysAgo(5) },
   ]);
 
   put(SK.displayName, 'Sam');
@@ -8420,9 +8565,22 @@ function saveFeedback(list) { try { localStorage.setItem(FEEDBACK_KEY, JSON.stri
 function feedbackName() { try { return localStorage.getItem(FEEDBACK_NAME_KEY) || ''; } catch(e) { return ''; } }
 function setFeedbackName(name) { try { localStorage.setItem(FEEDBACK_NAME_KEY, name); } catch(e) {} }
 function unsentFeedbackCount() { return loadFeedback().filter(f=>!f.sentDate).length; }
+function toggleHdrMenu(ev) {
+  if (ev) ev.stopPropagation();
+  const m = document.getElementById('hdrMenu'), b = document.getElementById('hdrMoreBtn');
+  const show = m.classList.contains('hidden');
+  m.classList.toggle('hidden', !show);
+  if (b) b.setAttribute('aria-expanded', show ? 'true' : 'false');
+}
+function hideHdrMenu() {
+  const m = document.getElementById('hdrMenu'), b = document.getElementById('hdrMoreBtn');
+  if (m) m.classList.add('hidden');
+  if (b) b.setAttribute('aria-expanded', 'false');
+}
+document.addEventListener('click', e => { if (!e.target.closest('#hdrMenu')) hideHdrMenu(); });
 function updateFeedbackBadges() {
   const n = unsentFeedbackCount();
-  ['feedbackFabBadge','feedbackHdrBadge'].forEach(id => {
+  ['feedbackFabBadge','feedbackHdrBadge','hdrMoreBadge','hdrMenuBadge'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.textContent = n; el.classList.toggle('hidden', n===0); }
   });
