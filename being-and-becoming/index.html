@@ -427,6 +427,27 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
 }
 
 .hdr .btn{white-space:nowrap}
+
+/* ── Values (261111_v1): words for how you show up, "More about" dropdowns, guide worked example ── */
+.show-up-label{font-size:11px;font-weight:600;color:var(--accent-dk);text-transform:uppercase;letter-spacing:.04em;margin-right:8px;display:inline-block}
+.val-words{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.val-words .chip{cursor:default;margin:0}
+.more-link{font-size:12.5px;color:var(--accent-dk);text-decoration:none;display:inline-block;margin-top:8px}
+.more-box{font-size:13px;color:var(--text2);background:var(--accent-lt);border-radius:6px;padding:8px 10px;margin-top:6px;line-height:1.5;white-space:pre-wrap}
+.more-box .more-h{white-space:normal}
+.more-h{font-size:11px;font-weight:600;color:var(--accent-dk);text-transform:uppercase;letter-spacing:.04em}
+.g-p{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:.75rem}
+.g-ol{font-size:14px;color:var(--text2);line-height:1.7;margin:0 0 .75rem 1.25rem;padding:0}
+.g-ol li{margin-bottom:.5rem}
+.g-part{font-weight:600;font-size:13px;color:var(--accent-dk);margin:.75rem 0 .35rem}
+.g-check{font-size:13.5px;color:var(--text2);background:var(--accent-lt);border-radius:6px;padding:10px 12px;line-height:1.6;margin-top:.5rem}
+details.g-check>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+details.g-check>summary::-webkit-details-marker{display:none}
+details.g-check .we-tog::after{content:"Hide \25B4"}
+details.g-check:not([open]) .we-tog::after{content:"Show \25BE"}
+details.g-check .we-tog{font-size:12px;color:var(--text2)}
+.val-word-row{border:1px solid var(--border2);border-radius:8px;padding:8px;margin-top:6px}
+.val-word-row input{width:100%;margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -489,7 +510,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:po
   <div id="learnings" class="view"></div>
 </main>
 
-<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261110_v2</span></footer>
+<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261111_v2</span></footer>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalBox">
@@ -885,7 +906,7 @@ function listWorkspaces() {
 // The Example workspace is sample data. When its content is improved (EXAMPLE_SEED_VERSION goes up),
 // an Example workspace seeded by an older build is cleared and re-seeded once, so testers see the new content.
 // Workspaces the person created themselves are never touched.
-const EXAMPLE_SEED_VERSION = '261110';
+const EXAMPLE_SEED_VERSION = '261111';
 const EXAMPLE_SEED_KEY = 'bb_example_seed_version';
 function refreshExampleIfStale(list) {
   try {
@@ -2177,28 +2198,78 @@ function renderOnDemand() {
 // ═══════════════════════════════════════════════════════════════
 // VALUES VIEW
 // ═══════════════════════════════════════════════════════════════
+// ── Value details: "More about this value" and the words for how you show up ──
+function valueWords(v) { return (v && Array.isArray(v.words) ? v.words : []).filter(w => w && (w.w || '').trim()); }
+function valueMoreBoxHtml(text) {
+  // Lines that start "What it means to me:" or "Why it matters:" become small headings
+  return String(text || '').split('\n').map(line => {
+    const m = line.match(/^(What it means to me|Why it matters):\s*(.*)$/i);
+    return m ? `<div class="more-h" style="margin-top:4px">${escapeHtml(m[1])}</div><div>${escapeHtml(m[2])}</div>` : (line.trim() ? `<div>${escapeHtml(line)}</div>` : '');
+  }).join('');
+}
+function valueDetailsHtml(v) {
+  const words = valueWords(v);
+  const hasX = words.some(w => (w.x || '').trim());
+  let out = '';
+  if ((v.more || '').trim()) out += `<div><a href="#" class="more-link" onclick="valToggle(event,'more','${v.id}')">More about this value \u25BE</a><div id="valmore-${v.id}" class="more-box" style="display:none">${valueMoreBoxHtml(v.more)}</div></div>`;
+  if (words.length) out += `<div class="val-words"><span class="show-up-label">How I show up</span>${words.map(w => `<span class="chip">${escapeHtml(w.w)}</span>`).join('')}</div>`;
+  if (hasX) out += `<div><a href="#" class="more-link" onclick="valToggle(event,'how','${v.id}')">More about how you show up \u25BE</a><div id="valhow-${v.id}" class="more-box" style="display:none">${words.map((w, i) => `<div class="more-h"${i ? ' style="margin-top:6px"' : ''}>${escapeHtml(w.w)}</div>${(w.x || '').trim() ? `<div>${escapeHtml(w.x)}</div>` : ''}`).join('')}</div></div>`;
+  return out;
+}
+function valToggle(e, kind, id) {
+  e.preventDefault();
+  const box = document.getElementById('val' + kind + '-' + id); if (!box) return;
+  const on = box.style.display === 'none';
+  box.style.display = on ? 'block' : 'none';
+  e.target.textContent = kind === 'more' ? (on ? 'Hide more about this value \u25B4' : 'More about this value \u25BE') : (on ? 'Hide how you show up \u25B4' : 'More about how you show up \u25BE');
+}
+function valuesExampleOpen() { try { return localStorage.getItem('bb_values_example_collapsed') !== '1'; } catch(e) { return true; } }
+function valuesExampleToggled(el) { try { if (el.open) localStorage.removeItem('bb_values_example_collapsed'); else localStorage.setItem('bb_values_example_collapsed', '1'); } catch(e) {} }
 function valuesGuideContentHtml() {
   return `
-    <div style="font-weight:500;margin-bottom:.5rem">What are values?</div>
-    <p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:1rem">Personal values are the core principles and standards a person deliberately chooses as the criteria for a life worth living — not merely preferences or feelings, but commitments that guide action, reflect how one wants to be and show up in behaviour not just belief.</p>
-    <div style="font-weight:500;margin-bottom:.5rem">How can I get started on defining and recording my values?</div>
-    <ol style="font-size:14px;color:var(--text2);line-height:1.7;margin:0 0 0 1.25rem;padding:0">
-      <li style="margin-bottom:.4rem">Think about the behaviours you exhibit when you are being your best self.</li>
-      <li style="margin-bottom:.4rem">Reflecting on a moment of anger/resentment, consider what value has been violated, or line has been crossed.</li>
-      <li style="margin-bottom:.4rem">Consider what behaviours are most important for you to see in others.</li>
-      <li style="margin-bottom:.4rem">Consider what you most admire in the behaviour of your heroes.</li>
-      <li style="margin-bottom:.4rem">Consider values that you believe are important to model. Values that matter.</li>
-      <li>Consider self-directed values (inwardly-satisfying, pursued for their own sake) as well as other-directed values (outwardly-validated, pursued as a means to an external outcome).</li>
-    </ol>
-    <div style="font-weight:500;margin:1.25rem 0 .5rem">What ongoing steps can I take?</div>
-    <ol style="font-size:14px;color:var(--text2);line-height:1.7;margin:0 0 0 1.25rem;padding:0">
-      <li style="margin-bottom:.4rem">Reflect on the extent to which you are living each of your values. If helpful, add some scores for how you're currently feeling.</li>
-      <li style="margin-bottom:.4rem">Think about any of your recent actions that are examples of you living a particular value. Add a Bright Spot to acknowledge it.</li>
-      <li style="margin-bottom:.4rem">Review this content (including changes in scores over time) and reflect whether there are any changes you'd like to make or specific actions you'd like to take.</li>
-      <li style="margin-bottom:.4rem">Write down any fully formed actions in the Actions tab.</li>
-      <li style="margin-bottom:.4rem">Write down any learnings you can take from your reflections in the Learnings tab.</li>
-      <li>Write down any work-in-progress thoughts that you'd still like to capture in the Scratchpad.</li>
-    </ol>`;
+<div style="font-weight:500;margin-bottom:.5rem">What are values?</div>
+<p class="g-p">Personal values are the core principles and standards a person deliberately chooses as the criteria for a life worth living — not merely preferences or feelings, but commitments that guide action, reflect how one wants to be and show up in behaviour not just belief.</p>
+<p class="g-p">A value is what matters to you, and why. <b>How you show up</b> at your best is related but different: it is what your values look like in action. B&amp;B lets you record both, and you can start with either.</p>
+<div style="font-weight:500;margin:1rem 0 .5rem">How can I get started on defining and recording my values?</div>
+<div class="g-part">Part 1: Find your candidates</div>
+<p class="g-p">Try one route, or several. Each takes a few minutes.</p>
+<ol class="g-ol" start="1">
+<li><b>Tell the story of a best day.</b> Recall a recent day you finished thinking "that was me". Write what happened hour by hour, then underline what you did, said and noticed. Choose three words that describe you on days like that, or ask a friend or colleague for theirs. These are your <b>How I show up</b> words.</li>
+<li><b>Notice anger or resentment.</b> Think of a moment when you felt angry or let down. What value was violated, or what line was crossed?</li>
+<li><b>Look at others.</b> What behaviours matter most to you in other people? What do you most admire in your heroes? Which values do you believe are important to model?</li>
+</ol>
+<div class="g-part">Part 2: Turn them into values</div>
+<ol class="g-ol" start="4">
+<li><b>Ask "so that".</b> Take one behaviour and complete: "I do this so that …". Ask the same question about your answer. Stop when you reach something you would not trade away. Name it in one or two words. That is your value.</li>
+<li><b>Say why it matters.</b> Imagine you could not act this way for a month. What would be lost, for you and for others? What irritates you when you see others neglect it? Add your answer under <b>More about this value</b>.</li>
+<li><b>Test it.</b> Can you remember a time you acted on it when it cost you something, such as time, approval, comfort or money? If so, it is probably a value. If not, it may be a preference or a strength not yet tested.</li>
+<li><b>Write one sentence.</b> "I value … because …". Make the "because" about the effect, on people or on something you care about, not "I'm good at it".</li>
+<li><b>Tidy up.</b> If you have several, group the ones with the same reason behind them. Five to eight values is plenty.</li>
+<li><b>Choose a type.</b> Self-directed values are inwardly satisfying and pursued for their own sake. Other-directed values are outwardly validated and pursued as a means to an external outcome.</li>
+</ol>
+<div class="g-check"><div class="more-h">A quick check: quality or value?</div>Read your "because". If it says "I'm good at it" or "it's how I am", you have probably found a strength or a quality: keep it as a <b>How I show up</b> word. If it says what the thing does for people, or for something you care about, it is a value.</div>
+<details ${valuesExampleOpen()?'open':''} class="g-check" style="margin-top:.75rem" ontoggle="valuesExampleToggled(this)"><summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="more-h" style="margin:0">A worked example: finding "Connection"</span><span class="we-tog" style="font-size:12px;color:var(--text2)"></span></summary>
+<ol class="g-ol" style="margin:.4rem 0 0;padding-left:1.4rem">
+<li><b>Best day.</b> A day I hosted a long lunch for people who did not know each other. I noticed myself making introductions, keeping the conversation easy and making sure no one was left on the edge. <i>Words:</i> <b>Connective</b> (warmth and wit, hosting, making people feel at ease) and <b>Caring</b> (noticing how people are and acting on it).</li>
+<li><b>Anger or resentment.</b> I felt let down when a new person sat through a whole meeting and nobody spoke to them. <i>What was violated:</i> people should be noticed and made to feel part of things.</li>
+<li><b>Others.</b> I admire people who remember what matters to others and who bring the right two people together.</li>
+<li><b>So that.</b> I host so that people feel welcome, so that they are known to each other, so that something happens between them that is greater than the sum of the parts. I would not trade that away. <i>Name it:</i> <b>Connection</b>.</li>
+<li><b>Why it matters.</b> Mutually beneficial relationships are where I gain energy and where purpose becomes shared. Feeling missed and wanted matters to me too. <i>Goes under More about this value.</i></li>
+<li><b>Test it.</b> Last month I gave up an evening to introduce two people who might work together, when I was tired and behind on my own work. It cost me something, so this looks like a value, not a preference.</li>
+<li><b>One sentence.</b> "I value connection because I want people to be known and linked to each other, to create something magical and greater than the sum of the parts." The "because" is about the effect on people, not "I'm good at it".</li>
+<li><b>Tidy up.</b> "Kindness" (people are looked after) had the same reason behind it, so I grouped it with Connection rather than keeping two values.</li>
+<li><b>Type.</b> The satisfaction comes from what happens for other people, so I chose <b>other-directed</b>.</li></ol>
+<div style="margin-top:.5rem"><b>What B&amp;B then shows:</b> the value <b>Connection</b>, the sentence, two <b>How I show up</b> words (Connective, Caring) and the reason under <b>More about this value</b>.</div>
+<div style="margin-top:.4rem;color:var(--text3);font-size:12px">This is an illustration. Your own answers will be different, and that is the point.</div></details>
+<div style="font-weight:500;margin:1.25rem 0 .5rem">What ongoing steps can I take?</div>
+<ol class="g-ol">
+<li>Reflect on the extent to which you are living each of your values. If helpful, add some scores for how you're currently feeling.</li>
+<li>Think about any of your recent actions that are examples of you living a particular value, or showing up as one of your words. Add a Bright Spot to acknowledge it.</li>
+<li>Review this content (including changes in scores over time) and reflect whether there are any changes you'd like to make or specific actions you'd like to take.</li>
+<li>Write down any fully formed actions in the Actions tab.</li>
+<li>Write down any learnings you can take from your reflections in the Learnings tab.</li>
+<li>Write down any work-in-progress thoughts that you'd still like to capture in the Scratchpad.</li>
+</ol>`;
 }
 function toggleValuesGuide() {
   const el = document.getElementById('valuesGuideExpanded');
@@ -2291,6 +2362,7 @@ function renderValues() {
           ${latest?`<span style="font-size:18px;font-weight:500;color:var(--accent)">${latest.value}</span>`:''}
         </div>
         ${v.notes?`<div style="font-size:13px;color:var(--text2);margin-top:2px">${escapeHtml(v.notes)}</div>`:''}
+        ${valueDetailsHtml(v)}
         ${latest?.note?`<div style="font-size:12px;color:var(--text3);margin-top:2px;font-style:italic">"${escapeHtml(truncateWords(latest.note, 15))}"</div>`:''}
         ${list.length>1?`<div class="chart-wrap-sm"><canvas id="valChart-${v.id}"></canvas></div>`:''}
         <div class="updated-row">${latest?`Last check-in: ${fmtDate(latest.date)} (${timeSince(latest.date)} ago)`:'No check-ins yet'}</div>
@@ -2584,8 +2656,15 @@ function openEditValue(id) {
         <option value="extrinsic" ${v?.type==='extrinsic'?'selected':''}>Other-directed</option>
       </select>
     </div>
-    <div class="field-group"><label class="field-label">Brief notes <span style="font-weight:400;color:var(--text3)">(optional — what this means to you)</span></label>
-      <input type="text" id="mgValNotes" value="${v?escapeHtml(v.notes||''):''}">
+    <div class="field-group"><label class="field-label">I value \u2026 because \u2026 <span style="font-weight:400;color:var(--text3)">(optional \u2014 one sentence about the effect: why it matters to you)</span></label>
+      <textarea id="mgValNotes" style="min-height:60px">${v?escapeHtml(v.notes||''):''}</textarea>
+    </div>
+    <div class="field-group"><label class="field-label">More about this value <span style="font-weight:400;color:var(--text3)">(optional \u2014 what it means to you, and why it matters. Shown again at check-in when your score is low)</span></label>
+      <textarea id="mgValMore" style="min-height:110px">${v?escapeHtml(v.more||''):''}</textarea>
+    </div>
+    <div class="field-group"><label class="field-label">How I show up <span style="font-weight:400;color:var(--text3)">(optional \u2014 words for how this value looks in you at your best)</span></label>
+      <div id="mgValWords"></div>
+      <button type="button" class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="valWordAdd()">+ Add a word</button>
     </div>
     <div class="field-group"><label class="field-label">Importance <span style="font-weight:400;color:var(--text3)">(optional)</span></label>
       <select id="mgValImportance">${IMPORTANCE_LEVELS.map(lvl=>`<option value="${lvl||''}" ${(v?.importance||null)===lvl?'selected':''}>${importanceLabel(lvl)}</option>`).join('')}</select>
@@ -2607,7 +2686,19 @@ function openEditValue(id) {
   openModal(`<button class="back-link" onclick="openManageValues()">← Back</button> ${isNew?'Add Value':'Edit Value'}`, body,
     `<button class="btn btn-secondary" onclick="openManageValues()">Cancel</button>
      <button class="btn btn-primary" onclick="saveValue('${id||''}')">Save</button>`);
+  VAL_WORDS_EDIT = valueWords(v).map(w => ({ w: w.w, x: w.x || '' }));
+  valWordsRender();
 }
+let VAL_WORDS_EDIT = [];
+function valWordsRender() {
+  const box = document.getElementById('mgValWords'); if (!box) return;
+  box.innerHTML = VAL_WORDS_EDIT.map((w, i) => `<div class="val-word-row">
+    <input type="text" placeholder="A word, e.g. Warm" value="${escapeHtml(w.w)}" oninput="VAL_WORDS_EDIT[${i}].w=this.value">
+    <textarea style="min-height:56px" placeholder="What this looks like on a best day (optional)" oninput="VAL_WORDS_EDIT[${i}].x=this.value">${escapeHtml(w.x)}</textarea>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="valWordDel(${i})">Remove</button></div>`).join('');
+}
+function valWordAdd() { VAL_WORDS_EDIT.push({ w: '', x: '' }); valWordsRender(); const rows = document.querySelectorAll('#mgValWords .val-word-row input'); if (rows.length) rows[rows.length - 1].focus(); }
+function valWordDel(i) { VAL_WORDS_EDIT.splice(i, 1); valWordsRender(); }
 function saveValue(id) {
   const label = document.getElementById('mgValLabel').value.trim();
   if (!label) { alert('Please enter a value.'); return; }
@@ -2615,8 +2706,10 @@ function saveValue(id) {
   const notes = document.getElementById('mgValNotes').value.trim();
   const importance = document.getElementById('mgValImportance').value || null;
   const shareTrend = document.getElementById('mgValShareTrend').checked;
-  if (!id) VALUES.push({ id:'v_'+uid(), label, type, notes, importance, shareTrend, archived: false, createdDate: today() });
-  else Object.assign(VALUES.find(x=>x.id===id), { label, type, notes, importance, shareTrend });
+  const more = (document.getElementById('mgValMore')?.value || '').trim();
+  const words = VAL_WORDS_EDIT.map(w => ({ w: (w.w || '').trim(), x: (w.x || '').trim() })).filter(w => w.w);
+  if (!id) VALUES.push({ id:'v_'+uid(), label, type, notes, more, words, importance, shareTrend, archived: false, createdDate: today() });
+  else Object.assign(VALUES.find(x=>x.id===id), { label, type, notes, more, words, importance, shareTrend });
   saveValues();
   openManageValues();
 }
@@ -2630,12 +2723,15 @@ function deleteValue(id) {
 function openValueCheckin(valueId) {
   const v = VALUES.find(x=>x.id===valueId);
   const latest = latestCheckin(SK.valueScores, 'valueId', valueId);
+  const vWords = valueWords(v);
   const body = `
+    ${(v.notes || vWords.length) ? `<div style="margin-bottom:1rem">${v.notes ? `<div style="font-size:13px;color:var(--text2)">${escapeHtml(v.notes)}</div>` : ''}${vWords.length ? `<div class="val-words"><span class="show-up-label">How I show up</span>${vWords.map(w => `<span class="chip">${escapeHtml(w.w)}</span>`).join('')}</div>` : ''}</div>` : ''}
     <div class="field-group"><label class="field-label">Date</label><input type="date" id="vcDate" value="${today()}"></div>
     <div class="field-group"><label class="field-label">How much do you currently feel you are living "${escapeHtml(v.label)}"?</label>
       ${rateSliderHtml('vcRate', latest?latest.value:5, 'Not at all', 'Very much so')}
+      ${(v.more || '').trim() ? `<div id="vcRemind" class="more-box" style="display:${(latest ? latest.value : 5) <= 5 ? 'block' : 'none'}"><div class="more-h">A reminder of why this matters to you</div>${valueMoreBoxHtml(v.more)}</div>` : ''}
     </div>
-    <div class="field-group"><label class="field-label">Anything you've noticed?</label><textarea id="vcNote" placeholder="Optional"></textarea>
+    <div class="field-group"><label class="field-label">Anything you've noticed?${vWords.length ? ` <span style="font-weight:400;color:var(--text3)">(Where did you show up as ${vWords.map(w => escapeHtml(w.w)).join(' or ')} recently? You can also add a Bright Spot from the value card.)</span>` : ''}</label><textarea id="vcNote" placeholder="Optional"></textarea>
       <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:var(--text2);cursor:pointer">
         <input type="checkbox" id="vcNoteAsAction"> Create an action from this entry
       </label>
@@ -2643,6 +2739,8 @@ function openValueCheckin(valueId) {
   openModal(`Check in — ${escapeHtml(v.label)}`, body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
      <button class="btn btn-primary" onclick="saveValueCheckin('${valueId}')">Save</button>`);
+  const vcSlider = document.getElementById('vcRate');
+  if (vcSlider) vcSlider.addEventListener('input', () => { const r = document.getElementById('vcRemind'); if (r) r.style.display = parseFloat(vcSlider.value) <= 5 ? 'block' : 'none'; });
 }
 function saveValueCheckin(valueId) {
   const date = document.getElementById('vcDate').value;
@@ -5078,7 +5176,7 @@ const IMP_DEFS = {
   learning:   { group:'Learnings', fields:[{k:'text',label:'What was learned',kind:'area',max:600,primary:1},{k:'category',label:'Category',kind:'sel',opts:'learnCat',always:1}] },
   action:     { group:'Actions', fields:[{k:'text',label:'The step',kind:'area',max:400,primary:1},{k:'due',label:'Rough date',kind:'date',max:10}] },
   brightspot: { group:'Bright spots', fields:[{k:'text',label:'What happened',kind:'area',max:500,primary:1}] },
-  value:      { group:'Values', fields:[{k:'label',label:'Value',kind:'text',max:80,primary:1},{k:'valueType',label:'Type',kind:'sel',opts:'valType',always:1},{k:'notes',label:'What it means to you',kind:'area',max:400}] },
+  value:      { group:'Values', fields:[{k:'label',label:'Value',kind:'text',max:80,primary:1},{k:'valueType',label:'Type',kind:'sel',opts:'valType',always:1},{k:'notes',label:'I value … because … (one sentence)',kind:'area',max:400},{k:'more',label:'More about this value (what it means, and why it matters)',kind:'area',max:600},{k:'words',label:'How I show up (one word per line, optionally “Word: what it looks like on a best day”)',kind:'lines',max:400,lmax:240}] },
   goal:       { group:'Goals', fields:[{k:'title',label:'Goal',kind:'text',max:160,primary:1},{k:'category',label:'Life area',kind:'sel',opts:'goalCat',always:1},{k:'goalType',label:'Type',kind:'sel',opts:'goalType',always:1},{k:'notes',label:'Notes',kind:'area',max:500},{k:'subgoals',label:'Sub-goals (one per line)',kind:'lines'}] },
   subgoal:    { group:'Goals', fields:[{k:'title',label:'Sub-goal',kind:'text',max:160,primary:1},{k:'parent',label:'Add to which goal?',kind:'sel',opts:'parentGoal',always:1}] },
   habit:      { group:'Habits', fields:[{k:'label',label:'The habit',kind:'area',max:300,primary:1},{k:'cue',label:'When and where',kind:'text',max:200},{k:'why',label:'Outcome',kind:'text',max:300},{k:'steps',label:'The steps',kind:'area',max:500},{k:'target',label:'SMART goal and target',kind:'text',max:200},{k:'trigger',label:'Activity trigger',kind:'text',max:200},{k:'smallest',label:'Smaller steps',kind:'text',max:200},{k:'anchor',label:'Piggyback activity',kind:'text',max:200},{k:'reward',label:'Reward',kind:'text',max:200},{k:'supporter',label:'Support',kind:'text',max:200},{k:'howKnow',label:'Signs it’s working',kind:'text',max:200}] },
@@ -5118,6 +5216,14 @@ function impDecode(s) {
   return rest || t;
 }
 
+// "Warm: what it looks like" or "Warm - what it looks like" or just "Warm" -> { w, x }
+function impParseWords(lines) {
+  return (lines || []).map(l => {
+    const t = String(l || '').trim(); if (!t) return null;
+    const m = t.match(/^([^:\u2013\u2014]{1,40}?)\s*(?::|\s[\u2013\u2014-]\s)\s*(.+)$/);
+    return m ? { w: m[1].trim(), x: m[2].trim() } : { w: t.slice(0, 40), x: '' };
+  }).filter(Boolean).slice(0, 4);
+}
 function impNorm(s) { return String(s == null ? '' : s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
 function impTokens(s) {
   const stop = new Set(['the','and','for','with','that','this','from','have','has','are','was','were','into','about','more','less','not','but','can','will','would','should','could','than','then','them','they','their','my','me','to','of','in','on','it','is','be','a','an','i','at','as','by','or','so','if']);
@@ -5207,7 +5313,7 @@ function buildImportPrompt() {
   L.push('- learning: text, category (one of: ' + LEARNING_CATEGORIES.join(' | ') + '), goal, values');
   L.push('- action: text, due, goal, values (small steps I could take)');
   L.push('- brightspot: text, value, goal (a moment when I lived one of my values)');
-  L.push('- value: label (a word or short phrase), valueType ("intrinsic" if it comes from me, "extrinsic" if it is about others), notes');
+  L.push('- value: label (a word or short phrase), valueType ("intrinsic" if it comes from me, "extrinsic" if it is about others), notes (one sentence in the form "I value … because …", where the because is about the effect on people or on something I care about, not "I am good at it"), more (optional: what it means to me and why it matters, as "What it means to me: …" then "Why it matters: …"), words (optional list of up to 4 words for how I show up when I am living this value at my best; each is either just the word or "Word: what that looks like on a best day"). Only include more and words if my notes say so; never invent them');
   L.push('- goal: title, category (one of: ' + GOAL_CATEGORIES.join(' | ') + '), goalType (' + GOAL_TYPES.join(' | ') + '), notes, values, subgoals (a list of short strings)');
   L.push('- subgoal: title, goal (the code of one of my existing goals)');
   L.push('- habit: label, cue, why, steps, target, trigger, smallest, anchor, reward, supporter, howKnow, values, goals');
@@ -5350,7 +5456,11 @@ function impNormalise(p) {
     flags: impList(p.flags, 4, 30).map(f => f.toLowerCase().replace(/[^a-z_]/g, '')).filter(f => IMP_FLAGS.includes(f)),
     linkValues: impList(p.values, 6, 80).map(impDecode), linkGoal: rmStr(impDecode(p.goal), 300), linkValue: rmStr(impDecode(p.value), 120), linkGoals: impList(p.goals, 4, 160).map(impDecode) };
   def.fields.forEach(f => {
-    if (f.kind === 'lines') it[f.k] = impList(p[f.k], 6, 160);
+    if (f.kind === 'lines') {
+      let src = p[f.k];
+      if (f.k === 'words' && Array.isArray(src)) src = src.map(x => (x && typeof x === 'object') ? ((x.word || x.w || x.label || '') + ((x.looks || x.x || x.description || x.text) ? ': ' + (x.looks || x.x || x.description || x.text) : '')) : x);
+      it[f.k] = impList(src, f.k === 'words' ? 4 : 6, f.lmax || 160);
+    }
     else if (f.k === 'parent') it.parent = '';
     else it[f.k] = rmStr(p[f.k], f.max || 100);
   });
@@ -5424,7 +5534,7 @@ function impCorpus() {
   load(SK.actions).forEach(x => add('Actions', x.description));
   load(SK.brightSpots).forEach(x => add('Bright spots', x.description));
   load(SK.scratchpad).forEach(x => add('Scratchpad', x.text));
-  VALUES.forEach(v => { add('Values', v.label, { noteOn: 'value', id: v.id }); add('Values', v.notes, { noteOn: 'value', id: v.id, label: v.label }); });
+  VALUES.forEach(v => { add('Values', v.label, { noteOn: 'value', id: v.id }); add('Values', v.notes, { noteOn: 'value', id: v.id, label: v.label }); (Array.isArray(v.words) ? v.words : []).forEach(w => add('Values', w && w.w, { noteOn: 'value', id: v.id, label: v.label })); });
   GOALS.forEach(g => { add('Goals', g.title, { noteOn: 'goal', id: g.id }); add('Goals', g.notes, { noteOn: 'goal', id: g.id, label: g.title }); (g.subGoals || []).forEach(sg => add('Sub-goals of “' + impTrunc(g.title, 40) + '”', sg.title)); });
   load(SK.habits).forEach(h => { add('Habits', h.label); add('Habits', h.why); add('Habits', h.steps); });
   TRAITS.forEach(t => { add('Strengths, saboteurs, personality & styles', t.label, { noteOn: 'trait', id: t.id }); add('Strengths, saboteurs, personality & styles', t.notes, { noteOn: 'trait', id: t.id, label: t.label }); });
@@ -5551,7 +5661,7 @@ function impReadItem(it) {
   const o = Object.assign({}, it);
   IMP_DEFS[it.type].fields.forEach(f => {
     const el = document.getElementById('imp_' + it.pid + '_' + f.k); if (!el) return;
-    o[f.k] = f.kind === 'lines' ? el.value.split('\n').map(x => rmStr(x, 160)).filter(Boolean).slice(0, 6) : rmStr(el.value, f.max || 160);
+    o[f.k] = f.kind === 'lines' ? el.value.split('\n').map(x => rmStr(x, f.lmax || 160)).filter(Boolean).slice(0, f.k === 'words' ? 4 : 6) : rmStr(el.value, f.max || 160);
   });
   const dd = document.getElementById('impdup_' + it.pid); o.dupChoice = dd ? dd.value : 'add';
   return o;
@@ -5601,7 +5711,7 @@ function impApply() {
       case 'action': { const o = stamp({ id: uid(), createdDate: today(), description: it.text, dueDate: /^\d{4}-\d{2}-\d{2}$/.test(it.due || '') ? it.due : '', context: 'General', goalId: res.goalId, valueIds: res.valueIds, importance: null, notes: '', completed: false, completedDate: null }); AC().push(o); ref('action', o.id); bump(grp); break; }
       case 'brightspot': { const o = stamp({ id: uid(), date: today(), description: it.text, valueId: res.valueIds[0] || null, goalId: res.goalId, importance: null }); SP().push(o); ref('spot', o.id); bump(grp); break; }
       case 'scratchpad': { const o = stamp({ id: uid(), date: today(), text: it.text, category: null, timing: null, priority: null, benefits: '', outcome: null, outcomeText: '', rationale: '', notes: '', linkedGoalId: null, linkedSubGoalId: null, linkedActionId: null, linkedLearningId: null }); SC().push(o); ref('scratch', o.id); bump(grp); break; }
-      case 'value': { const o = stamp({ id: 'v_' + uid(), label: it.label, type: it.valueType === 'extrinsic' ? 'extrinsic' : 'intrinsic', notes: it.notes || '', importance: null, shareTrend: false, archived: false, createdDate: today() }); VALUES.push(o); ref('value', o.id); bump(grp); break; }
+      case 'value': { const o = stamp({ id: 'v_' + uid(), label: it.label, type: it.valueType === 'extrinsic' ? 'extrinsic' : 'intrinsic', notes: it.notes || '', more: it.more || '', words: impParseWords(it.words), importance: null, shareTrend: false, archived: false, createdDate: today() }); VALUES.push(o); ref('value', o.id); bump(grp); break; }
       case 'goal': {
         const subs = (it.subgoals || []).map(t => ({ id: 'sg_' + uid(), title: t, notes: '', dueDate: '', target: null }));
         const o = stamp({ id: 'g_' + uid(), title: it.title, category: it.category || '', goalType: it.goalType || '', notes: it.notes || '', dueDate: '', target: null, importance: null, valueIds: res.valueIds, createdDate: today(), subGoals: subs });
@@ -8241,7 +8351,19 @@ function seedExampleWorkspace() {
     Ambitious: "A useful engine, but I want to check it's pointing somewhere I've chosen.",
     Dependable: "Being the one people can rely on. Also the reason I struggle to say no.",
   };
-  VALUES_SEED.forEach(v => { v.importance = VAL_IMP[v.label] || null; if (!v.notes && VAL_NOTES[v.label]) v.notes = VAL_NOTES[v.label]; });
+  const VAL_MORE = {
+    Creative: "What it means to me: Making things myself, not just briefing others.\nWhy it matters: It is where I feel most absorbed and most like me. When I go too long without it, work starts to feel borrowed.",
+    Honest: "What it means to me: Saying what I actually think, including to myself.\nWhy it matters: Without it I drift into whatever looks sensible on paper and end up somewhere I did not choose.",
+    Connective: "What it means to me: Backing people rather than directing them.\nWhy it matters: The best moments of my week are when someone I have helped has a breakthrough.",
+    Present: "What it means to me: Being fully where I am, especially with family.\nWhy it matters: Evenings are short, and I do not want to spend them half in my inbox.",
+  };
+  const VAL_WORDS = {
+    Creative: [{ w: 'Hands-on', x: 'Opening the file and making the thing myself, rather than giving feedback on someone else\'s draft.' }, { w: 'Playful', x: 'Trying a rough version early and letting it be a bit odd.' }],
+    Honest: [{ w: 'Direct', x: 'Saying the clear thing kindly, without three paragraphs of cushioning.' }],
+    Connective: [{ w: 'Backing', x: 'Asking what someone needs, then getting out of the way.' }, { w: 'Warm', x: 'Noticing how people are and saying so.' }],
+    Present: [{ w: 'Unhurried', x: 'Phone away, no half-listening, nowhere else to be.' }],
+  };
+  VALUES_SEED.forEach(v => { v.importance = VAL_IMP[v.label] || null; if (!v.notes && VAL_NOTES[v.label]) v.notes = VAL_NOTES[v.label]; v.more = VAL_MORE[v.label] || ''; v.words = VAL_WORDS[v.label] || []; });
   put(SK.values, VALUES_SEED);
   put(SK.valueScores, [
     { id: uidE(), valueId: vCreative.id, date: daysAgo(150), value: 7 },
