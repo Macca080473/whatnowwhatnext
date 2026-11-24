@@ -553,7 +553,7 @@ details.g-check .we-tog{font-size:12px;color:var(--text2)}
   <div id="learnings" class="view"></div>
 </main>
 
-<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261117_v1</span></footer>
+<footer class="app-footer">© <span id="footerYear"></span> Iain MacMillan / What Now? What Next?. All rights reserved. <span style="white-space:nowrap">Version 261124_v1</span></footer>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalBox">
@@ -9203,12 +9203,14 @@ function seedDemoData() {
 // data, so it survives a workspace being reset or deleted, and isn't lost if
 // someone's testing in the Example workspace rather than their own.
 // Since there's no server to send mail from, "send" means: compile everything not
-// yet sent into a clean summary, copy it to the clipboard, and open the person's
-// own email client via a mailto: link pre-addressed to Iain — they paste and hit
-// send themselves. Marking entries "sent" happens the moment that happens (not
-// after a separate confirmation) — simplest for a small group of testers, and
-// nothing is destructive: unsent/sent is just a flag on each entry, so a forgotten
-// send can always be included again from Manage Feedback.
+// yet sent into a clean summary and open the person's own email client via a
+// mailto: link pre-addressed to Iain, with the feedback already in the body (as much
+// as fits: mail apps limit the length of a link, so anything that does not fit is
+// left for the clipboard copy, which is always made as a backup). They check it and
+// press send themselves. "Save & send" on the form saves the entry and does this in
+// one step. An entry is marked "sent" once it is in the email body or safely on the
+// clipboard; nothing is destructive, so a forgotten send can always be included
+// again from Manage Feedback.
 const FEEDBACK_KEY = 'bb_feedback_log';
 const FEEDBACK_NAME_KEY = 'bb_feedback_name';
 const FEEDBACK_EMAIL_TO = 'hello@whatnowwhatnext.co.uk';
@@ -9302,7 +9304,7 @@ function openFeedbackForm(editId) {
   const defaultType = f?.type || 'like';
   const w = feedbackFieldWording(defaultType);
   const body = `
-    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Flag something that's not working, an idea for how this could be better, or just something you like — it all goes into one log you can email to Iain whenever you're ready. Nothing is sent automatically.</p>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Flag something that's not working, an idea for how this could be better, or just something you like — it all goes into one log you can email to Iain whenever you're ready. Nothing leaves the tool by itself: "Save &amp; send" opens your own email app with the message ready, and you press Send there.</p>
     <div class="field-group"><label class="field-label">Which part of the tool?</label>
       <select id="fbSection">${FEEDBACK_SECTIONS.map(s=>`<option value="${s.id}" ${defaultSection===s.id?'selected':''}>${escapeHtml(s.label)}</option>`).join('')}</select>
     </div>
@@ -9322,12 +9324,21 @@ function openFeedbackForm(editId) {
       <input type="text" id="fbName" value="${escapeHtml(f?.name ?? feedbackName())}" placeholder="e.g. Sam">
     </div>
     ${f && f.sentDate ? `<p style="font-size:12px;color:var(--text3)">Already included in an email sent ${fmtDate(f.sentDate)}. Saving changes here won't resend it automatically — use Manage Feedback if you want it re-included.</p>` : ''}
+    <p style="font-size:12px;color:var(--text3);margin:.25rem 0 .5rem">${feedbackSendHint(editId)}</p>
     <button class="btn-add-block" onclick="openManageFeedback()">View / manage all feedback →</button>`;
   openModal(f ? 'Edit Feedback' : 'Give Feedback', body,
     `<button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-     <button class="btn btn-primary" onclick="saveFeedbackEntry('${editId||''}')">Save</button>`);
+     <button class="btn btn-secondary" onclick="saveFeedbackEntry('${editId||''}')">Save</button>
+     <button class="btn btn-primary" onclick="saveFeedbackEntry('${editId||''}', true)">Save &amp; send</button>`);
 }
-function saveFeedbackEntry(editId) {
+// Under the Save & send button: say what it will include, so nothing is a surprise.
+function feedbackSendHint(editId) {
+  const others = loadFeedback().filter(x => !x.sentDate && x.id !== editId).length;
+  return others
+    ? `<b>Save &amp; send</b> opens your email app with this feedback and ${others} earlier unsent item${others===1?'':'s'}, addressed to Iain. You check it and press Send there. <b>Save</b> just keeps it for later.`
+    : `<b>Save &amp; send</b> opens your email app with this feedback, addressed to Iain. You check it and press Send there. <b>Save</b> just keeps it for later.`;
+}
+function saveFeedbackEntry(editId, andSend) {
   const current = document.getElementById('fbCurrent').value.trim();
   if (!current) { alert('Please add a bit of detail first.'); return; }
   const name = document.getElementById('fbName').value.trim();
@@ -9342,14 +9353,17 @@ function saveFeedbackEntry(editId) {
   };
   const list = loadFeedback();
   if (editId) {
-    Object.assign(list.find(x=>x.id===editId), entry);
+    const ex = list.find(x=>x.id===editId);
+    Object.assign(ex, entry);
+    if (andSend) delete ex.sentDate; // sending on purpose: include it even if it went before
   } else {
     list.push(Object.assign({ id:uid(), date:today(), workspace: (listWorkspaces().find(w=>w.id===ACTIVE_WORKSPACE)||{}).name || '', sentDate:null }, entry));
   }
   saveFeedback(list);
   updateFeedbackBadges();
   closeModal();
-  alert('Thanks — saved. Use Manage Feedback (or the feedback button again) whenever you want to email this through.');
+  if (andSend) { prepareFeedbackEmail(); return; }
+  alert('Thanks — saved. Use Save & send (or Manage Feedback) whenever you want to email this through.');
 }
 function deleteFeedbackEntry(id) {
   if (!confirm('Delete this feedback entry? This cannot be undone.')) return;
@@ -9370,6 +9384,7 @@ function openManageFeedback() {
   const body = `
     <p style="font-size:13px;color:var(--text2);margin-bottom:.75rem">${unsent ? `${unsent} item${unsent===1?'':'s'} not yet emailed.` : 'Everything here has already been emailed.'}</p>
     <button class="btn btn-primary btn-sm" style="margin-bottom:1rem" onclick="prepareFeedbackEmail()" ${unsent?'':'disabled'}>✉ Prepare email to Iain (${unsent} new)</button>
+    <button class="btn btn-secondary btn-sm" style="margin-bottom:1rem" onclick="showFeedbackText()" ${unsent?'':'disabled'}>Show / copy the text instead</button>
     <div class="divider"></div>
     ${list.length ? list.map(f => `
       <div class="manage-row" style="align-items:flex-start">
@@ -9386,30 +9401,80 @@ function openManageFeedback() {
     <button class="btn-add-block" style="margin-top:.5rem" onclick="openFeedbackForm()">+ Add feedback</button>`;
   openModal('Manage Feedback', body, `<button class="btn btn-secondary" onclick="closeModal()">Close</button>`);
 }
-function prepareFeedbackEmail() {
-  const list = loadFeedback();
-  const toSend = list.filter(f=>!f.sentDate);
-  if (!toSend.length) { alert('No new feedback to send — everything has already been emailed.'); return; }
-  const lines = toSend.map((f,i) => [
+// One item as plain text (shared by the email body, the clipboard copy and the show-the-text view).
+function feedbackItemText(f, i) {
+  return [
     `${i+1}. ${feedbackSectionLabel(f.section)} — ${feedbackTypeLabel(f.type)} (${fmtDate(f.date)}${f.name?`, ${f.name}`:''})`,
     `What's happening: ${f.current}`,
     f.requested ? `Requested change: ${f.requested}` : null,
     f.importance ? `Importance: ${importanceLabel(f.importance)}` : null,
-  ].filter(Boolean).join('\n')).join('\n\n');
-  const summary = `Being & Becoming — feedback (${toSend.length} item${toSend.length===1?'':'s'})\n\n${lines}`;
+  ].filter(Boolean).join('\n');
+}
+function feedbackHeading(n) { return `Being & Becoming — feedback (${n} item${n===1?'':'s'})\n\n`; }
+function feedbackFullText(items) { return feedbackHeading(items.length) + items.map(feedbackItemText).join('\n\n'); }
+// Mail apps cap the length of a mailto: link (about 2,000 characters in total is the safe limit), so
+// the body holds as many whole items as fit and says where the rest is. Returns {body, included}.
+const FEEDBACK_MAILTO_BUDGET = 1700; // characters of the encoded body
+function feedbackMailBody(items) {
+  const enc = t => encodeURIComponent(t).length;
+  let body = feedbackHeading(items.length), included = 0;
+  for (let i = 0; i < items.length; i++) {
+    const t = feedbackItemText(items[i], i) + (i < items.length - 1 ? '\n\n' : '');
+    const note = '\n\n[More items follow: the full text is on your clipboard. Paste it here in place of this line.]';
+    if (enc(body + t) + (i < items.length - 1 ? enc(note) : 0) > FEEDBACK_MAILTO_BUDGET) break;
+    body += t; included++;
+  }
+  if (included === 0) { // even one item is too long: keep the start of it
+    const full = feedbackItemText(items[0], 0);
+    let cut = full.length; while (cut > 40 && enc(body + full.slice(0, cut) + '…') > FEEDBACK_MAILTO_BUDGET - 200) cut = Math.floor(cut * 0.9);
+    body += full.slice(0, cut) + '…';
+  }
+  if (included < items.length) body += '\n\n[More: the full text is on your clipboard. Paste it here in place of this line.]';
+  return { body, included };
+}
+function feedbackOpenMail(url) { window.location.href = url; }
+// Copy with a fallback for browsers where the clipboard API is blocked; resolves true or false.
+function feedbackCopy(text) {
+  try { if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text).then(() => true, () => false); } catch(e) {}
+  return Promise.resolve(false);
+}
+function prepareFeedbackEmail() {
+  const list = loadFeedback();
+  const toSend = list.filter(f=>!f.sentDate);
+  if (!toSend.length) { alert('No new feedback to send — everything has already been emailed.'); return; }
+  const full = feedbackFullText(toSend);
   const subject = `B&B tool feedback — ${toSend.length} item${toSend.length===1?'':'s'} — ${today()}`;
-  let copied = false;
-  try { navigator.clipboard.writeText(summary); copied = true; } catch(e) {}
-  const mailto = `mailto:${FEEDBACK_EMAIL_TO}?subject=${encodeURIComponent(subject)}${copied?'':`&body=${encodeURIComponent(summary)}`}`;
-  window.location.href = mailto;
-  const now = today();
-  toSend.forEach(f => f.sentDate = now);
-  saveFeedback(list);
-  updateFeedbackBadges();
-  closeModal();
-  alert(copied
-    ? `Feedback copied to your clipboard and your email app should be opening, addressed to ${FEEDBACK_EMAIL_TO} — paste the feedback into the body and send. These ${toSend.length} item(s) are now marked as sent.`
-    : `Your email app should be opening, addressed to ${FEEDBACK_EMAIL_TO}, with the feedback already in the body — just check it over and send. These ${toSend.length} item(s) are now marked as sent.`);
+  const mb = feedbackMailBody(toSend);
+  const everythingFits = mb.included >= toSend.length;
+  // Open the email first (inside the click), then confirm the clipboard copy before saying what happened.
+  feedbackOpenMail(`mailto:${FEEDBACK_EMAIL_TO}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(mb.body)}`);
+  feedbackCopy(full).then(copied => {
+    const now = today();
+    // Items whole in the email body are done. Any that did not fit are only safe once they are on the clipboard.
+    toSend.forEach((f, i) => { if (i < mb.included || copied) f.sentDate = now; });
+    saveFeedback(list);
+    updateFeedbackBadges();
+    closeModal();
+    const left = toSend.filter(f => !f.sentDate).length;
+    if (everythingFits) {
+      alert(`Your email app should be opening, addressed to ${FEEDBACK_EMAIL_TO}, with ${toSend.length === 1 ? 'your feedback' : 'all ' + toSend.length + ' items'} already in the body. Check it over and press Send there.${copied ? ' A copy is also on your clipboard.' : ''} ${toSend.length === 1 ? 'It is' : 'These items are'} now marked as sent.`);
+    } else {
+      const inBody = mb.included === 0 ? 'only the start of the first item is in the body' : `the first ${mb.included} of ${toSend.length} items are in the body`;
+      if (copied) alert(`Your email app should be opening, but the feedback was too long for a link: ${inBody}. The full text is on your clipboard, so paste it over the note at the end of the email, then press Send. All ${toSend.length} items are now marked as sent.`);
+      else alert(`Your email app should be opening, but the feedback was too long for a link: ${inBody}, and the rest could not be copied to your clipboard. ${left} item${left===1?' is':'s are'} still marked as not sent. Use "Show / copy the text instead" in Manage Feedback to send ${left===1?'it':'them'}.`);
+    }
+  });
+}
+// Fallback: show the text of everything not yet sent, to copy by hand.
+function showFeedbackText() {
+  const toSend = loadFeedback().filter(f=>!f.sentDate);
+  if (!toSend.length) { alert('No new feedback to send — everything has already been emailed.'); return; }
+  const body = `<p style="font-size:13px;color:var(--text2);margin-bottom:.5rem">Copy this into an email to ${FEEDBACK_EMAIL_TO}. Nothing is marked as sent until you use the email button.</p>
+    <textarea id="fbText" readonly style="width:100%;min-height:240px;font-size:12.5px" onclick="this.select()">${escapeHtml(feedbackFullText(toSend))}</textarea>`;
+  openModal('Feedback text', body,
+    `<button class="btn btn-secondary" onclick="openManageFeedback()">Back</button>
+     <button class="btn btn-primary" onclick="feedbackCopy(document.getElementById('fbText').value).then(ok => { if (!ok) { document.getElementById('fbText').select(); alert('Copying was blocked: the text is selected, so press Ctrl+C (or Cmd+C) to copy it.'); } else alert('Copied.'); })">Copy</button>`);
+  setTimeout(() => { const t = document.getElementById('fbText'); if (t) t.select(); }, 50);
 }
 
 // ═══════════════════════════════════════════════════════════════
